@@ -5,6 +5,11 @@ Created on Aug 13, 2019
 '''
 
 def set_bit(n, var, to=1):
+    '''
+    set bit n in var to
+    n can be an integer for a single bit or a tuple for a bit-slice.
+    to is an integer (1/0 for a single bit or something else for a bit-slice)
+    '''
     mask = 1 << n
     if to == 0:
         mask = ~mask
@@ -15,6 +20,10 @@ def set_bit(n, var, to=1):
         raise Exception("WTF")
 
 def get_bit(n, var):
+    '''
+    return bit n from var
+    n can be an integer for one bit or a tuple for a bit-slice
+    '''
     mask = 1 << n
     return (var & mask) >> n
 

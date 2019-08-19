@@ -72,6 +72,7 @@ class SEDR(ABC):
         # debug
         if not hasattr(self, 'debug'):
             self.debug = False
+        if self.debug: print('-'*50, "> %s.__call__(%s, %s)" % (self.id, endian, record))
         self.buffer = b''
         # Endian
         if endian == None:
@@ -85,8 +86,9 @@ class SEDR(ABC):
         self._update()
         # Record
         if record != None:
-            if self.debug: print("len(%s) = %s" % (self.id, len(record)))
+            if self.debug: print("%s.__call__(%s, %s) : record length = %s bytes" % (self.id, endian, record, len(record)))
             self._unpack(record)
+        if self.debug: print('<', '-'*50, " %s.__call(%s, %s)" % (self.id, endian, record))
     
     def get_fields(self, FieldID = None):
         '''
@@ -95,9 +97,9 @@ class SEDR(ABC):
         if isinstance(FieldID, str) and FieldID in self.fields:
             return(self.fields[FieldID]['#'],
                    self.fields[FieldID]['Type'], 
-                   self.fields[FieldID]['Ref'],
                    self.fields[FieldID]['Value'],
-                   self.fields[FieldID]['Text'])
+                   self.fields[FieldID]['Text'],
+                   self.fields[FieldID]['Missing'])
         else:
             raise SEDFError("%s.get_value(%s) Error : '%s' is not a string or not a field key" % (self.id, FieldID, FieldID))
 
@@ -169,7 +171,7 @@ class SEDR(ABC):
             if not isinstance(Value, str):
                 raise SEDFError("%s.set_value(%s, %s) Error : '%s' is not a python-string" % (self.id, FieldID, Value, Value))
             if Bytes == 'n':
-                temp = Value.strip()[:255]
+                temp = Value.strip().encode()[:255].decode(errors='ignore')
             else:
                 raise SEDFError("%s.set_value(%s, %s) : Unsupported type '%s'" % (self.id, FieldID, Value, '*'.join((Type, Bytes))))
             self.fields[FieldID]['Value'] = temp
@@ -191,45 +193,58 @@ class SEDR(ABC):
         if ((Type == 'U') or (Type == 'I')):
             if Bytes in ['1', '2', '4', '8']:
                 retval = int(Bytes)
-                if self.debug: print("%s._type_size(%s) = %s [%s]" % (self.id, FieldID, retval, '*'.join((Type, Bytes)))) 
+                if self.debug: print("%s._type_size('%s') = %s [%s] (%s)" % (self.id, FieldID, retval, '*'.join((Type, Bytes)), self.get_value(FieldID))) 
                 return retval
             else:
-                raise SEDFError("%s_type_size(%s) : Unsupported type '%s'" % (self.id, FieldID, '*'.join((Type, Bytes))))
+                raise SEDFError("%s_type_size('%s') : Unsupported type '%s'" % (self.id, FieldID, '*'.join((Type, Bytes))))
         elif Type == 'R':
             if Bytes in ['4', '8']:
                 retval = int(Bytes)
-                if self.debug: print("%s._type_size(%s) = %s [%s]" % (self.id, FieldID, retval, '*'.join((Type, Bytes)))) 
+                if self.debug: print("%s._type_size('%s') = %s [%s] (%s)" % (self.id, FieldID, retval, '*'.join((Type, Bytes)), self.get_value(FieldID))) 
                 return retval
             else:
-                raise SEDFError("%s_type_size(%s) : Unsupported type '%s'" % (self.id, FieldID, '*'.join((Type, Bytes))))
+                raise SEDFError("%s_type_size('%s') : Unsupported type '%s'" % (self.id, FieldID, '*'.join((Type, Bytes))))
         elif Type == 'C':
             if Bytes == 'n':
-                retval = len(self.fields[FieldID]) + 1
-                if self.debug: print("%s._type_size(%s) = %s [%s]" % (self.id, FieldID, retval, '*'.join((Type, Bytes))))
+                str_as_bytes = self.fields[FieldID]['Value'].encode()
+                retval = len(str_as_bytes)
+                if retval > 255:
+                    self.fields[FieldID]['Value'] = self.fields[FieldID]['Value'].encode()[:255].decode(errors='ignore') # cut to unicode boundary
+                    retval = len(self.fields[FieldID]['Value'])
+                retval+=1
+                if self.debug: print("%s._type_size('%s') = %s [%s] ('%s')" % (self.id, FieldID, retval, '*'.join((Type, Bytes)), self.get_value(FieldID)))
                 return retval
             else:
-                raise SEDFError("%s_type_size(%s) : Unsupported type '%s'" % (self.id, FieldID, '*'.join((Type, Bytes))))
+                raise SEDFError("%s_type_size('%s') : Unsupported type '%s'" % (self.id, FieldID, '*'.join((Type, Bytes))))
 
     def _update(self):
         '''
         Private method that updates the "bytes following the header" in the 'REC_LEN' field
         '''
-        reclen = 7
-        crc = 0
+        if self.debug: print('-'*50, "> %s._update() : REC_LEN = %s & CRC_ADLR = %s" % (self.id, self.get_value('REC_LEN'), self.get_value('CRC_ADLR')))
         # update Values
         for FieldID in self.fields:
             if self.fields[FieldID]['Value'] ==  None:
                 self.fields[FieldID]['Value'] = self.fields[FieldID]['Missing']
+                if self.debug: print("%s._update() Values : '%s' set to '%s' from missing" % (self.id, FieldID, self.get_value(FieldID)))
         # update REC_LEN
+        reclen = 7
         for FieldID in self.fields:
             if FieldID not in ['CRC_ADLR', 'REC_LEN', 'REC_TYP']:
-                reclen += self._type_size(FieldID)
+                fieldlen = self._type_size(FieldID)
+                if self.debug: print("%s._update() REC_LEN : %s : %s + %s = %s" % (self.id, FieldID, reclen, fieldlen, reclen+fieldlen))
+                reclen += fieldlen 
+        if self.debug: print("%s._update() REC_LEN : %s" % (self.id, reclen))     
         self.fields['REC_LEN']['Value'] = reclen
         # update CRC_ADLR
+        crc = 0
         for FieldID in self.fields:
             if FieldID != 'CRC_ADLR':
                 crc = adler32(self._pack_item(FieldID), crc)
+                if self.debug: print("%s._update() CRC_ADLR '%s' : %s " % (self.id, FieldID, crc))
+        if self.debug: print("%s._update() CRC_ADLR %s" % (self.id, crc))
         self.fields['CRC_ADLR']['Value'] = crc
+        if self.debug: print('<', '-'*50, " %s._update() : REC_LEN = %s & CRC_ADLR = %s" % (self.id, self.get_value('REC_LEN'), self.get_value('CRC_ADLR')))
                 
     def _pack_item(self, FieldID):
         '''
@@ -250,7 +265,7 @@ class SEDR(ABC):
         TypeFormat = self.fields[FieldID]['Type']
         Type, Size = TypeFormat.split("*")
         fmt = ''
-        pkg = ''
+        pkg = b''
         if Type == 'U': # Unsigned integer
             if not isinstance(Value, int):
                 if Value==None:
@@ -296,12 +311,12 @@ class SEDR(ABC):
             if Size == 'n':
                 if not isinstance(Value, str):
                     Value=str(Value)
+                Value=Value.encode() 
                 K = len(Value)
                 if K > 255: 
                     K=255
                 pkg+=struct.pack('B', K)
-                for i in range(K):
-                    pkg+=Value[i]
+                pkg+=Value[:K]
             else:
                 raise SEDFError("%s._pack_item(%s) : Unsupported type-format '%s'" % (self.id, FieldID, TypeFormat))
         else:
@@ -309,36 +324,41 @@ class SEDR(ABC):
         return pkg
 
     def _pack(self):
+        if self.debug: print('-'*50, "> %s._pack()" % self.id)
         # pack the body
-        body = ''
+        body = b''
+        self._update()
         for item in range(3, len(self.sequence)):
-            body += self._pack_item(self.sequence[item])
-        self._update_rec_len()
+            record = self._pack_item(self.sequence[item]) 
+            if self.debug: print("%s._pack() '%s' : %s + %s = %s <> %s" %(self.id, self.sequence[item], len(body), len(record), len(body)+len(record), self.get_value('REC_LEN')-7))
+            body += record
         # check the body length against the REC_LEN
-        if self.fields['REC_LEN']['Value'] != len(body): 
-            raise SEDFError("%s.pack() length error %s != %s" % (self.id, self.get_fields('REC_LEN')[3], len(body)))
+        if self.fields['REC_LEN']['Value']-7 != len(body): 
+            raise SEDFError("%s.pack() length error %s != %s" % (self.id, self.fields['REC_LEN']['Value'], len(body)))
         # pack the header
-        header = ''
+        header = b''
         for item in range(0, 3):
             header += self._pack_item(self.sequence[item])
         # assemble the record    
         retval = header + body
-        if self.debug: print("%s.pack()\n   '%s'\n   %s bytes" % (self.id, hexify(retval), len(retval)))
+        if self.debug: print('<', '-'*50, " %s._pack() %s" % (self.id, retval))
         return retval
 
 
-    def _unpack_item(self, FieldID):
-        if not isinstance(FieldID, str):
-            raise SEDFError("%s._unpack_item(%s) : '%s' a string" % (self.id, FieldID, FieldID))
-        if FieldID not in self.Fields:
-            raise SEDFError("%s._unpack_item(%s) : '%s' not a valid key" % (self.id, FieldID, FieldID))
+    def _unpack_item(self, FieldNr):
+        if not isinstance(FieldNr, int):
+            raise SEDFError("%s._unpack_item(%s) : '%s' should be an integer" % (self.id, FieldNr, FieldNr))
+        if FieldNr not in self.sequence:
+            raise SEDFError("%s._unpack_item(%s) : '%s' is an unknown FieldNr" % (self.id, FieldNr, FieldNr))
+        FieldID = self.sequence[FieldNr]
+
         if len(self.buffer) == 0:
             if self.fields[FieldID]!=None:
                 self.set_value(FieldID, self.fields[FieldID]['Missing'])
             else:
                 raise SEDFError("%s._unpack_item(%s) : buffer is empty, and no 'missing' replacement available" % (self.id, FieldID))
         else:
-            Type = self.fields['FieldID']['Type']
+            Type = self.fields[FieldID]['Type']
             Type, Bytes = Type.split("*")
             fmt = ''
             pkg = self.buffer
@@ -398,9 +418,9 @@ class SEDR(ABC):
                     n_bytes = struct.unpack('B', working_buffer)[0]
                     if len(self.buffer) < n_bytes:
                         raise SEDFError("%s._unpack_item(%s) : Not enough bytes in buffer (need %s while %s available)." % (self.id, FieldID, n_bytes, len(self.buffer)))
-                    working_buffer = self.buffer[0:n_bytes]
-                    self.buffer = self.buffer[n_bytes:]
-                    result = working_buffer.decode()
+                    working_buffer = self.buffer[1:n_bytes]
+                    self.buffer = self.buffer[n_bytes:] # consume buffer
+                    result = working_buffer.decode(errors='ignore')
                 else:
                     raise SEDFError("%s._unpack_item(%s) : Unsupported type '%s'." % (self.id, FieldID, '*'.join((Type, Bytes))))    
                 if self.debug: print("%s._unpack_item(%s)\n   '%s' [%s] -> %s" % (self.id, FieldID, hexify(pkg), '*'.join((Type, Bytes)), result))
@@ -412,15 +432,16 @@ class SEDR(ABC):
         '''
         Private method to unpack a record (including header -to-check-record-type-) and set the appropriate values in fields.
         '''
+        if self.debug: print('-'*50, "> %s._unpack(%s)" % (self.id, record))
+        if not isinstance(record, bytes):
+            raise SEDFError("was expecting a byte array ... got a %s" % type(record))
         self.buffer = record
-        
-        if self.debug: print("%s._unpack(%s) with buffer length = %s" % (self.id, hexify(record), len(record))) 
-
+        if self.debug: print("%s._unpack(xx) with buffer length = %s" % (self.id, len(record))) 
         if record[6] != self.fields['REC_TYP']['Value']:
             raise SEDFError("%s._unpack(%s) : REC_TYP doesn't match record" % (self.id, hexify(record)))
-
         for field in range(len(self.sequence)): # sort? no, better like this, if a code is missing it will explode :-)
             self._unpack_item(field)
+        if self.debug: print('<', '-'*50, " %s._unpack(%s)" % (self.id, record))
             
     def __len__(self):
         return self.get_value('REC_LEN')
@@ -611,6 +632,7 @@ if __name__ == '__main__':
     class TST(SEDR):
         def __init__(self, endian=None, record=None):
             import numpy as np
+            self.debug=False
             self.fields = {
                 # header
                 'CRC_ADLR' : {'#' :  0, 'Type' :  'U*4', 'Value' : None, 'Text' : 'Adler32 checksum of the record                            ', 'Missing' :                     None},
@@ -639,8 +661,17 @@ if __name__ == '__main__':
                 'R*8 Max'  : {'#' : 22, 'Type' :  'R*8', 'Value' : None, 'Text' : 'biggest value for a R*8                                   ', 'Missing' : np.finfo(np.float64).max},
                 'C*n Min'  : {'#' : 23, 'Type' :  'C*n', 'Value' : None, 'Text' : 'An empty string                                           ', 'Missing' :                       ''},
                 'C*n utf-8': {'#' : 24, 'Type' :  'C*n', 'Value' : None, 'Text' : 'An unicode (utf-8) string                                 ', 'Missing' :'μV ΔT °C ≤≥ àáâãäçèéêëö'},
-                'C*n Max'  : {'#' : 25, 'Type' :  'C*n', 'Value' : None, 'Text' : 'A string capped to 255 (unicode) characters               ', 'Missing' :                  '.'*300}}
+                'C*n Max'  : {'#' : 25, 'Type' :  'C*n', 'Value' : None, 'Text' : 'A string capped to 255 (unicode) characters               ', 'Missing' :                  'ö'*300}}
             self.__call__(endian, record)
     
     tst = TST()
+    tst_pack = tst._pack()
     print(tst)
+    endian = tst.endian
+    record = tst._pack()
+    brol = TST()
+    brol(endian, record)
+    print(brol)
+    brol_pack = brol._pack()
+    print(tst_pack)
+    print(brol_pack)

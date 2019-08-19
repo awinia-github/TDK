@@ -1,20 +1,21 @@
-# -*- coding: utf-8 -*-
+'''
+Created on Aug 19, 2019
 
-import os, copy
+@author: hoeren
+'''
+import os, struct
 
 from abc import ABC
 
-from ATE.Data.Formats.register_map import register_map_abc
 from ATE.Data.utils.bitfucking import get_bit, set_bit
 
-class PEABC(ABC):
+class register_map_abc(ABC):
     '''
-    Physical Element Abstract Base Class for *ALL* physical elements.
+    The Abstract Base Class for all register maps ('internal' for the tester, or 'external' for working with a DUT
     '''
-
     def __init__(self, configManager=None):
         self.configManager = configManager
-        self.name = str(self.__class__).split('.')[-1].replace("'>", '')
+        self.name = self.__class__.__name__
         self.device_driver = '/dev/%s' % self.name
         # copy the defaults from the class attributes
         self.address_size = self.address_size # Hahaha, think about this one ;P !!!
@@ -47,6 +48,8 @@ class PEABC(ABC):
             if self.get_value(variable)==None:
                 self.register_map[variable]['value'] = self.get_default(variable)
 
+    def __call__(self):
+        pass # move the __init__ stuff here for easier subclassing
         
     def register_map_size(self, unit='bits'):
         '''
@@ -434,26 +437,34 @@ class PEABC(ABC):
 
 
 if __name__ == '__main__':
-    
-    
-    class myRegMap(PEABC):
+     
+    class CTCA(register_map_abc):
         
-        address_size = 3 # bits
-        word_size = 8 # bits
+        address_size = 5 # bits
+        word_size = 16 # bits
         register_map = {
-            'CH0_GAIN'        : {'offset' : 0x001, 'words' : 1, 'slice' : (7, 6), 'default' : 0x00, 'access' : 'RW', 'value' : None, 'changed' : False},
-            'CH0_REF_MONITOR' : {'offset' : 0x001, 'words' : 1, 'slice' : (5,),   'default' : 0x00, 'access' : 'RW', 'value' : None, 'changed' : False},
-            'CH0_RX'          : {'offset' : 0x001, 'words' : 1, 'slice' : (4,),   'default' : 0x00, 'access' : 'RW', 'value' : None, 'changed' : False},
-            'CH0_OFFSET'      : {'offset' : 0x002, 'words' : 3, 'slice' : (23,0), 'default' : 100, 'access' : 'RW', 'value' : None, 'changed' : False},
-            'CH0_OFFSET_HI'   : {'offset' : 0x002, 'words' : 1, 'slice' : (7,0),  'default' : 0,    'access' : 'RW', 'value' : None, 'changed' : False},
-            'CH0_OFFSET_MID'  : {'offset' : 0x003, 'words' : 1, 'slice' : (7,0),  'default' : 0,    'access' : 'RW', 'value' : None, 'changed' : False},
-            'CH0_OFFSET_LO'   : {'offset' : 0x004, 'words' : 1, 'slice' : (7,0),  'default' : 0,    'access' : 'RW', 'value' : None, 'changed' : False},
-            'brol'            : {'offset' : 0x004, 'words' : 9, 'slice' : (54,5), 'default' : 0,    'access' : 'RW', 'value' : None, 'changed' : True},
-            'CH1_GAIN'        : {'offset' : 0x005, 'words' : 4, 'slice' : (24,0), 'default' : 100, 'access' : 'RW', 'value' : None, 'changed' : False},      
+            'version'       : {'offset' : 0x000, 'words' : 1, 'slice' : (7, 0), 'default' : None, 'access' : 'R',  'desc' : 'Version',                                                'presets' : None},
+            'major_version' : {'offset' : 0x000, 'words' : 1, 'slice' : (7, 4), 'default' :  0xb, 'access' : 'R',  'desc' : 'Major version',                                          'presets' : None},
+            'minor_version' : {'offset' : 0x000, 'words' : 1, 'slice' : (3, 0), 'default' :  0x0, 'access' : 'R',  'desc' : 'Minor version',                                          'presets' : None},
+            
+            'regd_enable'   : {'offset' : 0x001, 'words' : 1, 'slice' :   (4,), 'default' :  0x1, 'access' : 'RW', 'desc' : 'Enable digital regulator in scan mode',                  'presets' : {0: "Disable", 1: "Enable"}},
+            
+            
+            
+            
+            'CH0_GAIN'        : {'offset' : 0x001, 'words' : 1, 'slice' : (7, 6), 'default' : 0x00, 'access' : 'RW', 'value' : None, 'desc' : '', 'presets' : None},
+            'CH0_REF_MONITOR' : {'offset' : 0x001, 'words' : 1, 'slice' : (5,),   'default' : 0x00, 'access' : 'RW', 'value' : None, 'desc' : '', 'presets' : {0: "4mA drive strength", 1 : "8mA drive strength"}},
+            'CH0_RX'          : {'offset' : 0x001, 'words' : 1, 'slice' : (4,),   'default' : 0x00, 'access' : 'RW', 'value' : None, 'desc' : '', 'presets' : {0: "Disable", 1: "Enable"}},
+            'CH0_OFFSET'      : {'offset' : 0x002, 'words' : 3, 'slice' : (23,0), 'default' : 100,  'access' : 'RW', 'value' : None, 'desc' : '', 'presets' : None},
+            'CH0_OFFSET_HI'   : {'offset' : 0x002, 'words' : 1, 'slice' : (7,0),  'default' : 0,    'access' : 'RW', 'value' : None, 'desc' : '', 'presets' : None},
+            'CH0_OFFSET_MID'  : {'offset' : 0x003, 'words' : 1, 'slice' : (7,0),  'default' : 0,    'access' : 'RW', 'value' : None, 'desc' : '', 'presets' : None},
+            'CH0_OFFSET_LO'   : {'offset' : 0x004, 'words' : 1, 'slice' : (7,0),  'default' : 0,    'access' : 'RW', 'value' : None, 'desc' : '', 'presets' : None},
+            'brol'            : {'offset' : 0x004, 'words' : 9, 'slice' : (54,5), 'default' : 0,    'access' : 'RW', 'value' : None, 'desc' : '', 'presets' : None},
+            'CH1_GAIN'        : {'offset' : 0x005, 'words' : 4, 'slice' : (24,0), 'default' : 100,  'access' : 'RW', 'value' : None, 'desc' : '', 'presets' : None},      
         }
         
-    myregmap = myRegMap()
-    myregmap.print_templates()
+    ctca = CTCA()
+    ctca.print_templates()
     
 #     print("%s" % TEST.variables_using_bit(16))
 

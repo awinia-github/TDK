@@ -37,7 +37,7 @@ bell = '\x07' # depends on console if you hear this one
 
 if __name__ == '__main__':
     print("-" * 79)
-    print("u'%s' holds %s characters" % (street_as_myconsolen(street_as_str)))
+    print("u'%s' holds %s characters" % (street_as_str(street_as_str)))
     print("u'%s' holds %s characters" % (street_as_str.casefold(), len(street_as_str.casefold())))
     print("u'%s' holds %s characters" % (name_as_str, len(name_as_str)))
     print("u'%s' holds %s characters" % (name_as_str.casefold(), len(name_as_str.casefold())))
