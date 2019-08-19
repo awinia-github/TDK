@@ -4364,7 +4364,7 @@ def sys_endian():
     return '>'
 
 def sys_cpu():
-    if sys_endian=='<':
+    if sys_endian()=='<':
         return 2
     return 1
 

@@ -10,7 +10,6 @@ from ATE.utils.varia import os_is_case_sensitive, path_is_writeable_by_me
 from ATE.utils.magicnumber import is_compressed_file, extension_from_magic_number_in_file
 from ATE.utils.compression import supported_compressions, supported_compressions_extensions, default_compression
 from ATE.Data.Formats.STDF.records import *
-from ATE.Data.Formats.STDF.quick import is_STDF
 
 from ATE.Data.Formats.STDF.records import MIR
 
@@ -1969,7 +1968,7 @@ class objects_from_file(object):
                 if len(footer)!=REC_LEN:
                     raise StopIteration
                 
-                
+                #TODO generate the object here!
                 
                 
                 
