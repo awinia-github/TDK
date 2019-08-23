@@ -1,6 +1,0 @@
-import os, sys
-
-project = '/Users/tho/eclipse-workspace2/ATE/src'
-sys.path.insert(0, project)
-
-stdf_resources = '/Users/tho/eclipse-workspace2/ATE/resources/stdf/'

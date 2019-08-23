@@ -1,5 +1,7 @@
 eclipse.preferences.version=1
 encoding//src/ATE/Data/Formats/SEDF/records.py=utf-8
+encoding//src/ATE/Data/Formats/register_map/utils/regedit/MainWindow.py=utf-8
+encoding//src/ATE/Data/Formats/register_map/utils/regedit/regedit.py=utf-8
 encoding//src/ATE/scripts/deflate.py=utf-8
 encoding//src/ATE/scripts/inflate.py=utf-8
 encoding//src/ATE/snippets/strVSbytes.py=utf-8
