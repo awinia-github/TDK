@@ -13,6 +13,7 @@ from ATE.Data.Formats.STDF.records import *
 
 from ATE.Data.Formats.STDF.records import MIR
 
+from ATE.utils.compression import get_deflated_file_size
     
 def stdfopen(FileName, mode='rb'):
     '''
@@ -27,159 +28,135 @@ def stdfopen(FileName, mode='rb'):
 
 
 
-
-
-
-
+def to_df(FileName, progress=True):
+    '''
+    This function will return a pandas data-frame from the given FileName.
     
-def to_index(FileName, progress=False, from_scratch=False):
+    This process has 2 stages :
+        1) index the FileName
+        2) construct the dataframe
     '''
-    This function will read the give STDF file, and create an index of the file.
-
-    if next to the stdf (so in the same directory, with the same basename) there is
-    an index file present that is younger than the origirnal (compressed or not) STDF
-    file, then this index file will be loaded unless the from_scratch parameter is True.
-    '''
+    
     index = {}
-    
-    return index
-
-def save_index(index, progress=False):
-    '''
-    '''
-    
-def load_index(index, progress=False):
-    '''
-    '''
-
-def create_DataFrameS(FileName, progress=False, from_scratch=False):
-    '''
-    '''
-    measurements = None
-    annotations = None
-    #...
-    
-    return measurements, annotations
-
-def save_DataFrameS(FileName, progress=False):
-    '''
-    This function will save the DataFrames in a hdf5 file
-    '''
-    
-def load_DataFrameS(FileName, progress=False):
-    '''
-    This function will load the DataFrames from a hdf5 file
-    '''
-    
-def pickle_index(FileName):
-    '''
-    '''
-
-def index_from_STDF(FileName, progress=False):
-    '''
-    This function will return a dictionary of dictionaries as follows
-    
-        {'version' : xxx,
-         'endian' : xxx,
-         'records' : { REC_NAM : [offset, ... 
-         'indexes' : { offset : bytearray of the record ...
-         'parts' : {part# : [offset, offset, offset, ...
-    
-    if however, next to FileName a file exists witht the same name, but with the .pickle extension,
-    *AND* that file is younger than FileName, then this file is loaded.
-    '''
-    retval = {}
-    Path, File = os.path.split(FileName)
-    Name, _ = os.path.splitext(File)
-    pickle_file = os.path.join(Path, "%s.pbz2" % Name)
-    if os.path.exists(pickle_file) and os.path.isfile(pickle_file):
-        if os.path.getmtime(FileName) < os.path.getmtime(pickle_file):
-            print("Loading STDF index file '%s.pickle' ... ", end='')
-            with bz2.open(pickle_file, 'rb') as fd:
-                retval = pickle.load(fd)
-            print("Done.")
-            return retval
+#   index = {'version' : stdf_version,
+#            'endian'  : stdf_endian,
+#            'records' : { REC_NAM : [offset, ... 
+#            'indexes' : { offset : bytearray of the record ...
+#            'parts' : {part# : [offset, offset, offset, ...
     offset = 0
-    if os.path.exists(FileName) and os.path.isfile(FileName):
-        endian, version = get_STDF_setup_from_file(FileName)
-        retval['version'] = version
-        retval['endian'] = endian
-        retval['records'] = {}
-        retval['indexes'] = {}
-        retval['parts'] = {}
+
+    if is_STDF(FileName):
+        endian, version = endian_and_version_from_file(FileName)
+        index['version'] = version
+        index['endian'] = endian  
+        index['records'] = {}
+        index['indexes'] = {}
+        index['parts'] = {}
         PIP = {} # parts in process
         PN = 1
-        TS2ID = ts_to_id()
+
+        TS2ID = ts_to_id(version)
+
         if progress:
             description = "Indexing STDF file '%s'" % os.path.split(FileName)[1]
-            t = tqdm(total=os.stat(FileName)[6], ascii=True, disable=not progress, desc=description, leave=False, unit='b')
-        for _, REC_TYP, REC_SUB, REC in xrecords_from_file(FileName):
+            index_progress = tqdm(total=get_deflated_file_size(FileName), ascii=True, disable=not progress, desc=description, leave=False, unit='b')
+
+        for _, REC_TYP, REC_SUB, REC in records_from_file(FileName):
             REC_ID = TS2ID[(REC_TYP, REC_SUB)]
             REC_LEN = len(REC)
-            if REC_ID not in retval['records']: retval['records'][REC_ID] = [] 
-            retval['indexes'][offset] = REC
-            retval['records'][REC_ID].append(offset)
+            if REC_ID not in index['records']: index['records'][REC_ID] = [] 
+            index['indexes'][offset] = REC
+            index['records'][REC_ID].append(offset)
             if REC_ID in ['PIR', 'PRR', 'PTR', 'FTR', 'MPR']:
                 if REC_ID == 'PIR':
-                    pir = PIR(retval['version'], retval['endian'], REC)
+                    pir = PIR(index['version'], index['endian'], REC)
                     pir_HEAD_NUM = pir.get_value('HEAD_NUM')
                     pir_SITE_NUM = pir.get_value('SITE_NUM')
                     if (pir_HEAD_NUM, pir_SITE_NUM) in PIP:
                         raise Exception("One should not be able to reach this point !")
                     PIP[(pir_HEAD_NUM, pir_SITE_NUM)] = PN
-                    retval['parts'][PN]=[]
-                    retval['parts'][PN].append(offset)
+                    index['parts'][PN]=[]
+                    index['parts'][PN].append(offset)
                     PN+=1  
                 elif REC_ID == 'PRR':
-                    prr = PRR(retval['version'], retval['endian'], REC)
+                    prr = PRR(index['version'], index['endian'], REC)
                     prr_HEAD_NUM = prr.get_value('HEAD_NUM') 
                     prr_SITE_NUM = prr.get_value('SITE_NUM')
                     if (prr_HEAD_NUM, prr_SITE_NUM) not in PIP:
                         raise Exception("One should not be able to reach this point!")
                     pn = PIP[(prr_HEAD_NUM, prr_SITE_NUM)]
-                    retval['parts'][pn].append(offset)
+                    index['parts'][pn].append(offset)
                     del PIP[(prr_HEAD_NUM, prr_SITE_NUM)]
                 elif REC_ID == 'PTR':
-                    ptr = PTR(retval['version'], retval['endian'], REC)
+                    ptr = PTR(index['version'], index['endian'], REC)
                     ptr_HEAD_NUM = ptr.get_value('HEAD_NUM') 
                     ptr_SITE_NUM = ptr.get_value('SITE_NUM')
                     if (ptr_HEAD_NUM, ptr_SITE_NUM) not in PIP:
                         raise Exception("One should not be able to reach this point!")
                     pn = PIP[(ptr_HEAD_NUM, ptr_SITE_NUM)]
-                    retval['parts'][pn].append(offset)
+                    index['parts'][pn].append(offset)
                 elif REC_ID == 'FTR':
-                    ftr = FTR(retval['version'], retval['endian'], REC)
+                    ftr = FTR(index['version'], index['endian'], REC)
                     ftr_HEAD_NUM = ftr.get_value('HEAD_NUM') 
                     ftr_SITE_NUM = ftr.get_value('SITE_NUM')
                     if (ftr_HEAD_NUM, ftr_SITE_NUM) not in PIP:
                         raise Exception("One should not be able to reach this point!")
                     pn = PIP[(ftr_HEAD_NUM, ftr_SITE_NUM)]
-                    retval['parts'][pn].append(offset)
+                    index['parts'][pn].append(offset)
                 elif REC_ID == 'MPR':
-                    mpr = MPR(retval['version'], retval['endian'], REC)
+                    mpr = MPR(index['version'], index['endian'], REC)
                     mpr_HEAD_NUM = mpr.get_value('HEAD_NUM') 
                     mpr_SITE_NUM = mpr.get_value('SITE_NUM')
                     if (mpr_HEAD_NUM, mpr_SITE_NUM) not in PIP:
                         raise Exception("One should not be able to reach this point!")
                     pn = PIP[(mpr_HEAD_NUM, mpr_SITE_NUM)]
-                    retval['parts'][pn].append(offset)
+                    index['parts'][pn].append(offset)
                 else:
                     raise Exception("One should not be able to reach this point! (%s)" % REC_ID)
-            if progress: t.update(REC_LEN)
+            if progress: index_progress.update(REC_LEN)
             offset += REC_LEN
-        if progress: t.close()
-    return retval
+            
+        if progress:
+            description = "analyzing :"
+            analyze_progress = tqdm(total=len(index['parts']), ascii=True, position=1, disable=not progress, desc=description, leave=False, unit='b')
+                
+        FTRs = []
+        PTRs = []
+        MPRs = []
+        
+        for part in index['parts']:
+            for record_offset in index['parts'][part]:
+                Type, SubType = TS_from_record(index['indexes'][record_offset])
+                ID = TS2ID[(Type, SubType)]
+                if ID == 'FTR':
+                    ftr = FTR(index['version'], index['endian'], index['indexes'][record_offset])
+                    
+                
+                if ID == 'PTR':
+                    ptr = PTR(index['version'], index['endian'], index['indexes'][record_offset])
+                
+                if ID == 'MPR':
+                    ptr = MPR(index['version'], index['endian'], index['indexes'][record_offset])
+                    
 
 
+            analyze_progress.update()
+        
+        
+        
 
 
-
-
-
-
-
-
-
+            
+            
+        if progress:
+            index_progress.close()
+            analyze_progress.close()
+#             build_progress.close()
+    
+        return index
+    
+    else: #not an STDF file
+        pass
 
 # class File(object):
 #     
@@ -1638,68 +1615,6 @@ def set_pretty_STDF_extension(FileName, use_hash=False):
     TODO: implement hashing
     '''
     
-class converter(object):
-    '''
-    '''
-    def __init__(self, FileName, progress=False, metis_path=None):
-        self.__call__(FileName, progress)
-    
-    def __call__(self, FileName, progress=False, metis_path=None):
-        '''
-        create first the index, and then the dataframe
-        '''
-        self.FileName = FileName
-        self.progress = progress
-        if self.can_use_path_for_metis(metis_path):
-            self.metis_path = metis_path
-        else:
-            self.metis_path = None
-
-        
-        #do the work
-    
-    def can_use_path_for_metis(self, metis_path):
-        if not os.path.exists(metis_path): print("Metis path '%s' does not exist" % metis_path); return False
-        if not os.path.isdir(metis_path): print("Metis path '%s' is not a directory" % metis_path); return False
-        if not path_is_writeable_by_me(metis_path): print("Metis path '%s' is not writeable by me" % metis_path); return False
-        self.metis_path = metis_path
-        return True
-    
-    def to_xlsx(self, FileName=None, progress=None):
-        '''
-        This method will create an xlsx file from the internal dataframe.
-        if FileName == None, this means the target file name will be the same as the source, just with the .xlsx extension.
-        if progress == None, it will be inherited from the converter, otherwise True or False is expected.
-        '''
-    
-    def to_pdf(self, FileName=None):
-        '''
-        This method will create a pdf report from the internal dataframe.
-        if FileName == None, this means the target file name will be the same as the source, just with the .pdf extension.
-        if progress == None, it will be inherited from the converter, otherwise True or False is expected.
-        '''
-    
-    def to_ppt(self, FileName=None):
-        '''
-        This method will create a ppt report from the internal dataframe.
-        if FileName == None, this means the target file name will be the same as the source, just with the .pdf extension.
-        if progress == None, it will be inherited from the converter, otherwise True or False is expected.
-        '''
-    
-    def to_metis(self):
-        '''
-        This method will move the source data to the metis directory (under the right structure)
-        It will also save the dataframe in a hdf5 file in the metis directory
-        '''
-        if self.metis_path == None:
-            print("metis is not configured yet")
-            return
-        
-#
-#
-# came from quick
-#
-
 
 def is_WS(FileName, progress=False):
     '''
@@ -1728,6 +1643,12 @@ def is_STDF(FileName):
     Note, it is checked if the file is compressed (only supports gzip, bz2 and lzma), if so,
     the uncompressed file is examined.
     '''
+    if not os.path.exists(FileName):
+        return False
+    
+    if not os.path.isfile(FileName):
+        return False
+    
     if is_compressed_file(FileName, ['.gz', '.xz', '.bz2']):
         extension = extension_from_magic_number_in_file(FileName)[0]
         if extension == '.gz':
@@ -1785,7 +1706,7 @@ def endian_and_version_from_file(FileName):
     tmp = records_from_file(FileName)
     endian = ''
     version = ''
-    if tmp.fd!=None: # success
+    if tmp!=None: # success
         endian = tmp.endian
         version = tmp.version 
     return endian, version
@@ -1916,65 +1837,66 @@ class records_from_file(object):
                 return REC_LEN, REC_TYP, REC_SUB, header+footer
 
 
-class objects_from_file(object):
-    
-    def __init__(self, FileName):
-        self.fd = None
-        if not isinstance(FileName, str): return
-        if not os.path.exists(FileName): return
-        if not os.path.isfile(FileName): return
-        if not is_STDF(FileName): return
-        if is_supported_compressed_STDF_file(FileName):
-            ext = extension_from_magic_number_in_file(FileName)
-            if len(ext)!=1: return
-            compression = supported_compressions_extensions[ext[0]]
-            if compression=='lzma':
-                import lzma
-                self.fd = lzma.open(FileName, 'rb')
-            elif compression=='bz2':
-                import bz2
-                self.fd = bz2.open(FileName, 'rb')
-            elif compression=='gzip':
-                import gzip
-                self.fd = gzip.open(FileName, 'rb')
-            else:
-                raise Exception("the %s compression is supported but not fully implemented." % compression)
-        else:
-            self.fd = open(FileName, 'rb')
-        buff = self.fd.read(6)
-        CPU_TYPE, STDF_VER = struct.unpack('BB', buff[4:])
-        if CPU_TYPE == 1: self.endian = '>'
-        elif CPU_TYPE == 2: self.endian = '<'
-        else: self.endian = '?'
-        self.version = 'V%s' % STDF_VER
-        self.fd.seek(0)
-        self.unpack_fmt = '%sHBB' % self.endian
-        
-    def __del__(self):
-        if self.fd != None:
-            self.fd.close()
-        
-    def __iter__(self):
-        return self
-    
-    def __next__(self):
-        while self.fd!=None:
-            while True:
-                header = self.fd.read(4)
-                if len(header)!=4:
-                    raise StopIteration
-                REC_LEN, REC_TYP, REC_SUB = struct.unpack(self.unpack_fmt, header)
-                footer = self.fd.read(REC_LEN)
-                if len(footer)!=REC_LEN:
-                    raise StopIteration
-                
-                #TODO generate the object here!
-                
-                
-                
-                return REC_LEN, REC_TYP, REC_SUB, header+footer
+# class objects_from_file(object):
+#     
+#     def __init__(self, FileName):
+#         self.fd = None
+#         if not isinstance(FileName, str): return
+#         if not os.path.exists(FileName): return
+#         if not os.path.isfile(FileName): return
+#         if not is_STDF(FileName): return
+#         if is_supported_compressed_STDF_file(FileName):
+#             ext = extension_from_magic_number_in_file(FileName)
+#             if len(ext)!=1: return
+#             compression = supported_compressions_extensions[ext[0]]
+#             if compression=='lzma':
+#                 import lzma
+#                 self.fd = lzma.open(FileName, 'rb')
+#             elif compression=='bz2':
+#                 import bz2
+#                 self.fd = bz2.open(FileName, 'rb')
+#             elif compression=='gzip':
+#                 import gzip
+#                 self.fd = gzip.open(FileName, 'rb')
+#             else:
+#                 raise Exception("the %s compression is supported but not fully implemented." % compression)
+#         else:
+#             self.fd = open(FileName, 'rb')
+#         buff = self.fd.read(6)
+#         CPU_TYPE, STDF_VER = struct.unpack('BB', buff[4:])
+#         if CPU_TYPE == 1: self.endian = '>'
+#         elif CPU_TYPE == 2: self.endian = '<'
+#         else: self.endian = '?'
+#         self.version = 'V%s' % STDF_VER
+#         self.fd.seek(0)
+#         self.unpack_fmt = '%sHBB' % self.endian
+#         
+#     def __del__(self):
+#         if self.fd != None:
+#             self.fd.close()
+#         
+#     def __iter__(self):
+#         return self
+#     
+#     def __next__(self):
+#         while self.fd!=None:
+#             while True:
+#                 header = self.fd.read(4)
+#                 if len(header)!=4:
+#                     raise StopIteration
+#                 REC_LEN, REC_TYP, REC_SUB = struct.unpack(self.unpack_fmt, header)
+#                 footer = self.fd.read(REC_LEN)
+#                 if len(footer)!=REC_LEN:
+#                     raise StopIteration
+#                 
+#                 #TODO generate the object here!
+#                 
+#                 
+#                 
+#                 return REC_LEN, REC_TYP, REC_SUB, header+footer
     
 
 if __name__ == '__main__':
-    FileName = r'C:\Users\hoeren\eclipse-workspace\TDK\resources\stdf\FLEX01_1_IEHVCF4210WTJ3_274_F1N_R_805940.002_1_jul24_16_13.stdf.xz'
-    print(endian_and_version_from_file(FileName))
+    FileName = r'C:\\Users\\hoeren\\eclipse-workspace\\TDK\\resources\\stdf\\Cohu\\D10\\diamond32_1_2424_27x_P2N_H_303809001_00_17072019_161623.std.xz'
+
+    df = to_df(FileName)

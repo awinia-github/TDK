@@ -13,7 +13,7 @@ from hashlib import md5 as hasher
 
 from ATE.utils.compression import supported_compressions
 from ATE.utils.magicnumber import is_compressed_file, extension_from_magic_number_in_file
-from ATE.Data.Formats.STDF.quick import is_STDF
+from ATE.Data.Formats.STDF.utils import is_STDF
 
 def file_contents_hash(FileName):
     '''
