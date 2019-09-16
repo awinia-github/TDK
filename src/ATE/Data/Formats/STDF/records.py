@@ -203,7 +203,7 @@ class STDR(ABC):
     def __init__(self, endian=None, record=None):
         self.id = 'STDR'
         self.missing_fields = 0
-        self.local_debug = False
+        self.local_debug = True
         self.buffer = ''
         self.fields = {
             'REC_LEN'  : {'#' :  0, 'Type' :  'U*2', 'Ref' : None, 'Value' :      0, 'Text' : 'Bytes of data following header        ', 'Missing' : None},

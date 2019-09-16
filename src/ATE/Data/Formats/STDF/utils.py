@@ -32,8 +32,9 @@ def to_df(FileName, progress=True):
     '''
     This function will return a pandas data-frame from the given FileName.
     
-    This process has 2 stages :
+    This process has 3 stages :
         1) index the FileName
+        2) Analyse
         2) construct the dataframe
     '''
     
@@ -117,30 +118,94 @@ def to_df(FileName, progress=True):
             offset += REC_LEN
             
         if progress:
-            description = "analyzing :"
-            analyze_progress = tqdm(total=len(index['parts']), ascii=True, position=1, disable=not progress, desc=description, leave=False, unit='b')
+            description = "Analyzing data"
+            ttl = len(index['records']['TSR'])
+            analyze_progress = tqdm(total=ttl, ascii=True, position=1, disable=not progress, desc=description, leave=False, unit='tests')
                 
-        FTRs = []
-        PTRs = []
-        MPRs = []
+        TEST_NUM_NAM = {}
         
-        for part in index['parts']:
-            for record_offset in index['parts'][part]:
-                Type, SubType = TS_from_record(index['indexes'][record_offset])
-                ID = TS2ID[(Type, SubType)]
-                if ID == 'FTR':
-                    ftr = FTR(index['version'], index['endian'], index['indexes'][record_offset])
-                    
-                
-                if ID == 'PTR':
-                    ptr = PTR(index['version'], index['endian'], index['indexes'][record_offset])
-                
-                if ID == 'MPR':
-                    ptr = MPR(index['version'], index['endian'], index['indexes'][record_offset])
-                    
-
-
+        for tsr_offset in index['records']['TSR']:
+            tsr = TSR(index['version'], index['endian'], index['indexes'][tsr_offset])
+            TEST_NUM = tsr.get_value('TEST_NUM')
+            TEST_NAM = tsr.get_value('TEST_NAM')
+            TEST_TYP = tsr.get_value('TEST_TYP').upper()
+            if TEST_NUM not in TEST_NUM_NAM:
+                TEST_NUM_NAM[TEST_NUM] = []
+            if (TEST_NAM, TEST_TYP) not in TEST_NUM_NAM[TEST_NUM]:
+                TEST_NUM_NAM[TEST_NUM].append((TEST_NAM, TEST_TYP))
             analyze_progress.update()
+        
+        for TEST_NUM in TEST_NUM_NAM:
+            if len(TEST_NUM_NAM[TEST_NUM])==1:
+                TEST_NUM_NAM[TEST_NUM] = TEST_NUM_NAM[TEST_NUM][0]
+
+
+        # Create the indexes of the dataframe
+        ROW_index = sorted(list(index['parts']))
+        TEST_ITM_index = ['LOT_ID', 'MOD_COD', 'X_POS', 'Y_POS'] #TODO: add more ...
+        TEST_NAM_index = ['Meta'] * len(TEST_ITM_index)
+        TEST_NUM_index = ['Meta'] * len(TEST_ITM_index)
+        for TEST_NUM in sorted(TEST_NUM_NAM):
+            TEST_TYP = TEST_NUM_NAM[TEST_NUM][1]
+            if TEST_TYP == 'P':
+                PTR_FIELDS = ['LO_SPEC', 'LO_LIMIT', 'RESULT', 'HI_LIMIT', 'HI_LIMIT', 'UNITS', 'PF']
+                TEST_ITM_index+=PTR_FIELDS
+                TEST_NAM_index+=[TEST_NUM_NAM[TEST_NUM][1]]*len(PTR_FIELDS)
+                TEST_NUM_index+=[TEST_NUM]*len(PTR_FIELDS)
+            elif TEST_TYP == 'F':
+                
+                TEST_NUM_index+=[TEST_NUM]*5
+                TEST_NAM_index+=[TEST_NUM_NAM[TEST_NUM][1]]*5     # VECT_NAME TIME_SET NUM_FAIL X_FAIL_AD Y_FAIL_AD PF
+            elif TEST_TYP == 'M':
+                pass
+            else:
+                raise STDFError("Test Type '%s' is unknown" % TEST_TYP)
+ 
+ 
+ 
+            
+        print("\n\n\n")
+            
+            
+        for record_offset in index['parts'][1]:
+            record = index['indexes'][record_offset]
+            T, S = TS_from_record(record)
+            ID = TS2ID[(T,S)]
+            if ID == 'PTR':
+                ptr = PTR(index['version'], index['endian'], record)
+                print(ptr)
+            if ID == 'PIR':
+                pir = PIR(index['version'], index['endian'], record)
+                print(pir)
+            if ID == 'PRR':
+                prr = PRR(index['version'], index['endian'], record)
+                print(prr)
+            
+            
+            
+            
+            
+#         if progress:
+#             description = "Constructing data-frame"
+#             constructing_progress = tqdm(total=len(index['parts']), ascii=True, position=2, disable=not progress, desc=description, leave=False, unit='parts')
+#         
+#         for part in index['parts']:
+#             for record_offset in index['parts'][part]:
+#                 Type, SubType = TS_from_record(index['indexes'][record_offset])
+#                 ID = TS2ID[(Type, SubType)]
+#                 if ID == 'FTR':
+#                     ftr = FTR(index['version'], index['endian'], index['indexes'][record_offset])
+#                     
+#                 
+#                 if ID == 'PTR':
+#                     ptr = PTR(index['version'], index['endian'], index['indexes'][record_offset])
+#                 
+#                 if ID == 'MPR':
+#                     ptr = MPR(index['version'], index['endian'], index['indexes'][record_offset])
+#                     
+# 
+# 
+#             constructing_progress.update()
         
         
         
@@ -151,9 +216,9 @@ def to_df(FileName, progress=True):
         if progress:
             index_progress.close()
             analyze_progress.close()
-#             build_progress.close()
+#             constructing_progress.close()
     
-        return index
+        return index, TEST_NUM_NAM
     
     else: #not an STDF file
         pass

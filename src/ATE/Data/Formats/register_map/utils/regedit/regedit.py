@@ -32,7 +32,7 @@ class MainWindow(Ui_mainWindow):
         self.directoryLineEdit.editingFinished.connect(self.changeDirectoryWithLineEdit)
         self.registermapComboBox.setEditable(True)
         self.registermapComboBox.currentIndexChanged.connect(self.registermapChanged)
-        self.registermapComboBox.editTextChanged.connect(self.registermapRenamed)
+        self.registermapComboBox.lineEdit().editingFinished.connect(self.registermapRenamed)
         self.removeRegistermapPushButton.setIcon(qta.icon('mdi.minus-box-outline', color='white', scale_factor=0.6))
         self.removeRegistermapPushButton.pressed.connect(self.removeRegistermap)
         self.copyRegistermapPushButton.setIcon(qta.icon('mdi.content-copy', color='white', scale_factor=0.6))
@@ -117,6 +117,13 @@ class MainWindow(Ui_mainWindow):
         self.registermapUpdate()
         
     def registermapUpdate(self):
+        self.active_regmap = self.registermapComboBox.currentText()
+        print("self.active_regmap = '%s'" % self.active_regmap)
+        
+        
+        
+        
+        
         
         if 'address_size' in self.regmaps[self.active_regmap]:
             Size = self.regmaps[self.active_regmap]['address_size']
@@ -182,7 +189,7 @@ class MainWindow(Ui_mainWindow):
       
         if not self.initialization:
             for regmap in self.changed_regmaps:
-                register_map_save(os.path.join(self.old_working_directory, regmap + '.regmap', self.regmaps[regmap]))
+                register_map_save(os.path.join(self.old_working_directory, regmap + '.regmap'), self.regmaps[regmap])
 
         self.initialization=False
         self.regmaps = {}
