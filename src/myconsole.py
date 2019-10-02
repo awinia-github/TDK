@@ -51,5 +51,5 @@ if __name__ == '__main__':
 #     print("sys.path.append(ATE_scripts)")
 #     print("sys.path.append(SCT_scripts)")
 #     print("sys.path.append(metis_scripts)")
-    print("stdf_resources = [file for file in os.listdir(r'%s')]" % stdf_resources)
+#    print("stdf_resources = r'%s'" % stdf_resources)
     print("os.environ['METIS'] = r'%s'" % metis_path)

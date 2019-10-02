@@ -9,7 +9,7 @@ License : GPL
 '''
 
 import os, time, datetime
-from PyQt5.QtCore import QDate
+from PyQt5.QtCore import QDate, QDateTime, QTime
 
 def is_date(stamp):
     '''
@@ -83,7 +83,28 @@ def url_datetime_string_to_epoch(url_datetime):
     retval = datetime.datetime.strptime(retval, "%d %b %Y %H:%M:%S")
     return int((retval - datetime.datetime(1970,1,1)).total_seconds())
 
+def micronas_time_structure_to_epoch(Datum=0, Uhrzeit=0):
+    '''
+    Micronas uses the following legacy structures:
+    
+    Datum : YYYYYYMM MMDDDDD0 (2 bytes)
+                YYYYYY --> Year  6 bit, range = 0..63, offset is 2000
+                MMMM ----> Month 4 bit, range = 0..15, 0=january .. 11=december
+                DDDDD ---> Day   5 bit, range = 0..31, 0 is not used, 1=first day of the month and so on
+                
+    Uhrzeit : HHHHHHHH MMMMMMMM (2 bytes)
+                HHHHHHHH --> Hour    8 bit, range = 0..255 only 0..23 is used
+                MMMMMMMM --> Minutes 8 bit, range = 0..255 only 0..59 is used
 
+    This function returns the seconds since epoch for the given Datum and Uhrzeit as an initializer for the DT objects
+    '''
+    year = (Datum & (0b111111 << 10)) >> 10
+    month = (Datum & (0b1111 << 6)) >> 6
+    day_of_month = (Datum & (0b11111 << 1)) >> 1
+    hours = (Uhrzeit & (0b11111111 << 8)) >> 8
+    minutes = Uhrzeit & 0b11111111
+    dt = DT("%2s%2s%4s" % (day_of_month, month+1, year+2000))
+    return dt.epoch+(hours*60*60)+(minutes*60)
 
 class DTOerror(RuntimeError):
     '''
@@ -99,6 +120,45 @@ class DTOerror(RuntimeError):
         return ''.join(self.args)        
 
 
+class TD(object):
+    '''
+    Time Differnce Object
+    '''
+    def __init__(self, diff):
+        self.diff = diff
+        
+    def seconds(self):
+        return self.diff
+    
+    def minutes(self):
+        return self.diff/60
+    
+    def hours(self):
+        return self.diff/(60*60)
+    
+    def days(self):
+        return self.diff/(60*60*24)
+    
+    def weeks(self):
+        return self.diff/(60*60*24*7)
+    
+    def months(self):
+        return self.diff/(60*60*24*365/12)
+        
+    def years(self):
+        return self.diff/(60*60*24*365)
+    
+    def __str__(self):
+        '''
+        3 years, 2 months, 3 weeks, 4 days 15 hours 20 min 3 seconds
+        '''
+        retval = ''
+        if self.years()>=1:
+            
+            retval+="%d year"
+        
+        return retval
+            
 class DT(object):
     '''
     Date and Time Object
@@ -115,7 +175,7 @@ class DT(object):
         elif isinstance(stamp, int) or isinstance(stamp, float):
             self.epoch = int(stamp)
         elif isinstance(stamp, str):
-            if is_datecode(stamp):
+            if is_datecode(stamp): # YYWWD
                 # set epoch to the beginning of the datecode
                 # http://stackoverflow.com/questions/5882405/get-date-from-iso-week-number-in-python
                 iso_year = int(stamp[:2])
@@ -127,21 +187,24 @@ class DT(object):
                 iso_day = int(stamp[4])
                 temp = iso_to_gregorian(iso_year, iso_week, iso_day)    
                 self.epoch = int((datetime.datetime(temp.year,temp.month,temp.day) - datetime.datetime(1970,1,1)).total_seconds())
-            elif is_date(stamp):
+            elif is_date(stamp): # DDMMYYYY
                 DD = int(stamp[:2])
                 MM = int(stamp[2:4])
                 YYYY = int(stamp[4:])
                 self.epoch = int((datetime.datetime(YYYY, MM, DD) - datetime.datetime(1970,1,1)).total_seconds())        
-            elif os.path.exists(stamp):
+            elif os.path.exists(stamp): # file path
                 self.epoch =  os.stat(stamp)[6]
-#         elif type(stamp) == time.struct_time: # intende for time.strptime so that it can be converted into UTC
-#             self.epoch = int((datetime.datetime(stamp.tm_year, stamp.tm_mon, stamp.tm_mday, stamp.tm_hour, stamp.tm_min, stamp.tm_sec) - datetime.datetime(1970, 1, 1)).total_seconds()) - (self.tz * 3600) + (abs(self.dst) * 3600)
+            else:
+                raise Exception("can not interprete the string '%s' as an initializer " % stamp)
+        elif isinstance(stamp, QDateTime):
+            self.epoch = stamp.currentSecsSinceEpoch()
+        elif isinstance(stamp, QDate):
+            DD = stamp.dayOfWeek()
+            MM = stamp.month()
+            YYYY = stamp.year()
+            self.epoch = int((datetime.datetime(YYYY, MM, DD) - datetime.datetime(1970,1,1)).total_seconds())        
         else:
             raise Exception("Don't now how to handle type(%s)=%s" % (stamp, type(stamp)))
-#             print(stamp)
-#             print(type(stamp))
-#             print(float(stamp))
-#             self.epoch = float((datetime.datetime.fromtimestamp(float(stamp)) - datetime.datetime(1970,1,1)).total_seconds())
         self._populate()
         
     def _populate(self):
@@ -214,9 +277,28 @@ class DT(object):
         self.year = t.tm_year # year
         self.datetime = datetime.datetime(self.year, self.month, self.mday, self.hour, self.min, self.sec)
         self.date = datetime.date(self.year, self.month, self.mday)
-        self.QDate = QDate(self.year, self.month, self.mday)
         self.time = datetime.time(self.hour, self.min, self.sec)
-
+        utc_offset = (-self.tz*3600)+(self.dst*3600)
+        self.QDateTime = QDateTime()
+        self.QDateTime.setOffsetFromUtc(utc_offset) # timezone + day light saving
+        self.QDateTime.setSecsSinceEpoch(self.epoch)
+        self.QDate = self.QDateTime.date()
+        self.QTime = self.QDateTime.time()
+    
+    def boh(self):
+        '''
+        Returns the epoch (is thus gmt based) for the Begin Of the Hour from the underlaying epoch.
+        The epoch of the object remains unchanged.
+        '''
+        return int((datetime.datetime(self.year, self.month, self.mday, self.hour) - datetime.datetime(1970,1,1)).total_seconds())
+        
+    def eoh(self):
+        '''
+        Returns the epoch (is thus gmt based) for the End Of the Hour from the underlaying epoch.
+        The underlaying epoch of the object remains unchanged.
+        '''
+        return self.boh()+3600-1
+    
     def bod(self):
         '''
         Returns the epoch (is thus gmt based) for the Begin Of the Day from the underlaying epoch.
@@ -251,19 +333,31 @@ class DT(object):
         Returns the epoch (is thus gmt based) of the Begin Of the Month from the undelaying epoch.
         The underlying epoch of the object remains unchanged.
         '''
+        return DT("01%2s%4s" % (self.month, self.year))
         
     def eom(self):
         '''
         Returns the epoch (is thus gmt based) of the End Of the Month from the undelaying epoch.
         The underlying epoch of the object remains unchanged.
         '''
+        if self.month == 12:
+            return DT("0101%4s" % (self.year + 1)).epoch -1
+        else:
+            return DT("01%2s%4s" % (self.month + 1, self.year)).epoch - 1
         
     def boy(self):
         '''
         Returns the epoch (is thus gmt based) of the Begin Of the Year from the underlaying epoch. 
         The underlying epoch of the object remains unchanged.
         '''
-
+        return DT("0101%4s" % self.year).epoch
+    
+    def eoy(self):
+        '''
+        Returns the epoch (is thus gmt based) of the End Of the Year from the undelaying epoch.
+        The undelaying epoch of the object remains unchanged.
+        '''
+        return DT("0101%4s" % (self.year + 1)).epoch -1
 
     def local(self):
         '''
@@ -274,7 +368,8 @@ class DT(object):
 
     def __sub__(self, other):
         if self.__class__.__name__ == other.__class__.__name__:
-            return self.epoch - other.epoch
+            return TD(self.epoch - other.epoch)
+        
         return NotImplemented
         
         
@@ -326,10 +421,6 @@ class DT(object):
         else:
             return False
     
-    def __str__(self):    
-        #Monday, January 6 2014 @ 13:22:11 (Q1 2014)
-        return "%s, %s %s %s @ %02d:%02d:%02d" % (self.wday_name, self.month_name, self.mday, self.year, self.hour, self.min, self.sec)
-        
     def __repr__(self):
         #Monday, January 6 2014 @ 13:22:11 (Q1 2014)
         return "%s, %s %s %s @ %02d:%02d:%02d (Q%s %s)" % (self.wday_name, self.month_name, self.mday, self.year, self.hour, self.min, self.sec, self.quarter, self.datecode)
@@ -339,25 +430,17 @@ class ChronoMeter(object):
     def __init__(self):
         self.reset()
                 
-    def __repr__(self):
-        print(self.__str__())
-    
-    def __str__(self):
-        return "Timed %f sec for %d laps (%f sec per lap)" % (self.time(), self.laps(), self.laptime())
-        
     def reset(self):
-        self.TotalTime = 0
-        self.Laps = 0
+        self.lap = 1
+        self.scoreboard = {}
     
     def start(self):
         self.TimeStart = time.time()
     
     def stop(self):
         self.TimeStop = time.time()
-        self.last_lap_time = self.TimeStop - self.TimeStart
-        self.TotalTime += self.last_lap_time
-        self.TimeStart = 0
-        self.Laps += 1
+        self.scoreboard[self.lap] = (self.TimeStart, self.TimeStop - self.TimeStart)
+        self.lap =+ 1
     
     def laps(self):
         return self.Laps
@@ -365,12 +448,21 @@ class ChronoMeter(object):
     def time(self):
         return self.TotalTime
     
-    def laptime(self):
-        if self.Laps == 0:
-            return 0.0
-        else:
-            return self.TotalTime / self.Laps
+    def laptime(self, lap):
+        return self.scoreboard[lap][1]
+
+    def averagelaptime(self):
+        TotalLapTime = 0
+        for lap in range(self.la)
         
+        return retval
+
+    def __repr__(self):
+        print(self.__str__())
+    
+    def __str__(self):
+        return "Timed %f sec for %d laps (%f sec per lap)" % (self.time(), self.laps(), self.laptime())
+
 if __name__ == "__main__":
     now = DT()
     print("now (UTC) = %s" % now)

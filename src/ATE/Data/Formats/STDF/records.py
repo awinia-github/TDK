@@ -992,7 +992,7 @@ class STDR(ABC):
         else:
             TypeMultiplier = False
         if Ref!=None:
-            if isinstance(Ref, str) and not TypeMultiplier:
+            if isinstance(Ref, str) and TypeMultiplier:
                 K = self.get_fields(Ref)[3]
             elif isinstance(Ref, tuple):
                 if (len(Ref)==1 and not TypeMultiplier) or (len(Ref)==2 and TypeMultiplier):
@@ -1408,7 +1408,7 @@ class STDR(ABC):
                             raise STDFError("%s._unpack_item(%s) : Not enough bytes in buffer (need %s while %s available)." % (self.id, FieldKey, n_bytes, len(self.buffer)))
                         working_buffer = self.buffer[0:n_bytes]
                         self.buffer = self.buffer[n_bytes:]
-                        result = working_buffer.decode()
+                        result = working_buffer.decode('utf-8')
                     elif Bytes == 'f': # C*f
                         n_bytes = self.get_fields(Ref)[3]
                         if len(self.buffer) < n_bytes:
@@ -1716,7 +1716,7 @@ class STDR(ABC):
             retval += "      %s = '%s'" % (sequence[field], self.fields[sequence[field]]['Value'])
             retval += " [%s] (%s)" %  (self.fields[sequence[field]]['Type'], self.fields[sequence[field]]['Text'].strip())
             if self.fields[sequence[field]]['Ref'] != None:
-                retval += " -> %s\n" % self.fields[sequence[field]]['Ref']
+                retval += " -> %s" % self.fields[sequence[field]]['Ref']
             if sequence[field] in time_fields:
                 retval += " = %s" % DT(float(self.fields[sequence[field]]['Value']))
             retval += "\n"
@@ -4843,5 +4843,10 @@ def save_STDF_index(FileName, index):
        
 
 if __name__ == '__main__':
-    FN = r'C:\Users\hoeren\eclipse-workspace\ATE\resources\stdf\Micronas\HVCF\IFLEX-14_1_XEHVCF4310WTJ3_272_F1N_R_806265.000_1_jul24_03_01.stdf'
+    endian = '<'
+    version = 'V4'
+    rec = b'\x1b\x00\x01P\x00\x00\x08\x00\x01\x02\x03\x04\x05\x06\x07\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 
+    sdr = SDR(version, endian, rec)
+    
+    print(sdr)

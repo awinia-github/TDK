@@ -11,7 +11,7 @@ from ATE.utils.magicnumber import is_compressed_file, extension_from_magic_numbe
 from ATE.utils.compression import supported_compressions, supported_compressions_extensions, default_compression
 from ATE.Data.Formats.STDF.records import *
 
-from ATE.Data.Formats.STDF.records import MIR
+from ATE.Data.Formats.STDF.records import MIR, SDR
 
 from ATE.utils.compression import get_deflated_file_size
     
@@ -1786,6 +1786,20 @@ def MIR_from_file(FileName):
         if REC_TYP==1 and REC_SUB==10: break
     return MIR(version, endian, REC)
 
+def SDRs_from_file(FileName):
+    '''
+    return the SDR(s) objects from FileName.
+    '''
+    retval = []
+    endian, version = endian_and_version_from_file(FileName)
+    print(endian, version)
+    if endian=='' or version=='': return retval
+    for _, REC_TYP, REC_SUB, REC in records_from_file(FileName):
+        if (REC_TYP, REC_SUB) not in [(0, 10), (0, 20),(1, 10),(1, 70), (1, 80)]: break
+        if (REC_TYP, REC_SUB) == (1, 80):
+            retval.append(REC)
+    return retval
+
 def TS_from_record(record):
     '''
     given an STDF record (bytearray), extract the REC_TYP and REC_SUB
@@ -1964,4 +1978,5 @@ class records_from_file(object):
 if __name__ == '__main__':
     FileName = r'C:\\Users\\hoeren\\eclipse-workspace\\TDK\\resources\\stdf\\Cohu\\D10\\diamond32_1_2424_27x_P2N_H_303809001_00_17072019_161623.std.xz'
 
-    df = to_df(FileName)
+    SDRs = SDRs_from_file(FileName)
+    print(SDRs)
