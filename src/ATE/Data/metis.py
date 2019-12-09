@@ -19,10 +19,7 @@ class Metis(object):
     '''
     
     def __init__(self):
-        self._archive = {}
-    
-    def __call__(self):
-        pass
+        self.df = None
     
     def import_stdf(self, FileName, progress=True):
         '''
@@ -30,6 +27,8 @@ class Metis(object):
         '''
         index = {}
         offset = 0
+        
+        
     
         if is_STDF(FileName):
             endian, version = endian_and_version_from_file(FileName)
@@ -42,16 +41,18 @@ class Metis(object):
             PN = 1
     
             TS2ID = ts_to_id(version)
-        # indexing
+
+        # indexing the stdf file
             if progress:
-                description = "Indexing STDF file '%s'" % os.path.basename(FileName)
+                desc= "Indexing STDF file '%s'" % os.path.basename(FileName)
                 total = get_deflated_file_size(FileName)
-                index_progress = tqdm(total=total, desc=description, leave=False, unit='b')
+                progress_bar = tqdm(total=total, desc=desc, leave=False, unit='b')
     
             for _, REC_TYP, REC_SUB, REC in records_from_file(FileName):
                 REC_ID = TS2ID[(REC_TYP, REC_SUB)]
                 REC_LEN = len(REC)
-                if REC_ID not in index['records']: index['records'][REC_ID] = [] 
+                if REC_ID not in index['records']: 
+                    index['records'][REC_ID] = [] 
                 index['indexes'][offset] = REC
                 index['records'][REC_ID].append(offset)
                 if REC_ID in ['PIR', 'PRR', 'PTR', 'FTR', 'MPR']:
@@ -74,7 +75,7 @@ class Metis(object):
                         pn = PIP[(prr_HEAD_NUM, prr_SITE_NUM)]
                         index['parts'][pn].append(offset)
                         del PIP[(prr_HEAD_NUM, prr_SITE_NUM)]
-                    elif REC_ID == 'PTR':
+                    elif REC_ID == 'PTR': #TODO: move this one to be the first to be checked, as this will be the most common one!
                         ptr = STDF.PTR(index['version'], index['endian'], REC)
                         ptr_HEAD_NUM = ptr.get_value('HEAD_NUM') 
                         ptr_SITE_NUM = ptr.get_value('SITE_NUM')
@@ -101,13 +102,15 @@ class Metis(object):
                     else:
                         raise Exception("One should not be able to reach this point! (%s)" % REC_ID)
                 if progress: 
-                    index_progress.update(REC_LEN)
+                    progress_bar.update(REC_LEN)
                 offset += REC_LEN
-        # analyzing
+
+        # analyzing TDR's
             if progress:
-                description = "Analyzing data"
-                ttl = len(index['records']['TSR'])
-                analyze_progress = tqdm(total=ttl, position=1, desc=description, leave=False, unit='tests')
+                progress_bar.close()
+                desc = "Analyzing TDF's "
+                total = len(index['records']['TSR'])
+                progress_bar = tqdm(total=total, desc=desc, leave=False, unit='tests')
                     
             TEST_NUM_NAM = {}
             
@@ -120,14 +123,16 @@ class Metis(object):
                     TEST_NUM_NAM[TEST_NUM] = []
                 if (TEST_NAM, TEST_TYP) not in TEST_NUM_NAM[TEST_NUM]:
                     TEST_NUM_NAM[TEST_NUM].append((TEST_NAM, TEST_TYP))
-                analyze_progress.update()
+                if progress:
+                    progress_bar.update()
+
+        # creating dataframe
+            if progress:
+                progress_bar.close()
+                desc = "Creating dataframe "
+                total = len(TEST_NUM_NAM)
+                progress_bar = tqdm(total=total, desc=desc, leave=False, unit='tests')
             
-            for TEST_NUM in TEST_NUM_NAM:
-                if len(TEST_NUM_NAM[TEST_NUM])==1:
-                    TEST_NUM_NAM[TEST_NUM] = TEST_NUM_NAM[TEST_NUM][0]
-    
-    
-            # Create the indexes of the dataframe
             ROW_index = sorted(list(index['parts']))
             TEST_ITM_index = ['LOT_ID', 'MOD_COD', 'X_POS', 'Y_POS'] #TODO: add more ...
             TEST_NAM_index = ['Meta'] * len(TEST_ITM_index)
@@ -147,11 +152,14 @@ class Metis(object):
                     pass
                 else:
                     raise STDFError("Test Type '%s' is unknown" % TEST_TYP)
-     
-     
+                if progress:
+                    progress_bar.update()
+                    
+        # filling the dataframe
+                    
      
                 
-            print("\n\n\n")
+            # print("\n\n\n")
                 
                 
             # for record_offset in index['parts'][1]:
@@ -201,15 +209,26 @@ class Metis(object):
                 
                 
             if progress:
-                index_progress.close()
-                analyze_progress.close()
+                # progress_bar.close()
+                progress_bar.close()
     #             constructing_progress.close()
         
             return index, TEST_NUM_NAM
         
         else: #not an STDF file
             pass
-        
+   
+    def save(self):
+        '''
+        this method saves this object in an HDF5 container.
+        ps: the target (base) directory comes from the environment variable 'metis_dir' (or so) 
+        '''
+        pass
+    
+    def pull_in(self, what=''):
+        '''
+        this method will pull in 'what' to the data-frame.
+        '''
         
 
 
