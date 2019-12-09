@@ -83,7 +83,7 @@ RecordDefinitions = {
     # Data collected per wafer
     (2,10)   : {'V3' : ['WIR', 'Wafer Information Record', [('', False)]],                      'V4' : ['WIR', 'Wafer Information Record', [('', False)]]                            },
     (2,20)   : {'V3' : ['WRR', 'Wafer Results Record', [('', False)]],                          'V4' : ['WRR', 'Wafer Results Record', [('', False)]]                                },
-    (2,30)   : {'V3' : ['WCR', 'Wafer Configuration Record', [('', False)]],                    'V3' : ['WCR', 'Wafer Configuration Record', [('', False)]]                          },
+    (2,30)   : {'V3' : ['WCR', 'Wafer Configuration Record', [('', False)]],                    'V4' : ['WCR', 'Wafer Configuration Record', [('', False)]]                          },
     # Data collected on a per part basis
     (5,10)   : {'V3' : ['PIR', 'Part Information Record', [('', False)]],                       'V4' : ['PIR', 'Part Information Record', [('', False)]]                             },
     (5,20)   : {'V3' : ['PRR', 'Part Results Record', [('', False)]],                           'V4' : ['PRR', 'Part Results Record', [('', False)]]                                 },

@@ -7,7 +7,7 @@ from PyQt5 import QtCore, QtWidgets, uic
 
 import os, re
 
-from ATE.org.listings import list_hardwaresetups, dict_project_paths
+from ATE.org.listings import list_hardwaresetups, dict_project_paths, listings
 from ATE.org.validation import is_valid_pcb_name, is_ATE_project
 
 class NewHardwaresetupWizard(QtWidgets.QDialog):
@@ -27,7 +27,11 @@ class NewHardwaresetupWizard(QtWidgets.QDialog):
         self.active_project = parent.active_project
         self.active_project_path = parent.active_project_path
 
-        existing_hardwaresetups = list_hardwaresetups(self.active_project_path)
+        self.listings = listings(self.active_project_path)
+        existing_hardwaresetups = self.listings.list_hardwaresetups()
+
+
+        # existing_hardwaresetups = list_hardwaresetups(self.active_project_path)
         new_hardwaresetup_number = 1
         for hardwaresetup in existing_hardwaresetups:
             existing_hardwaresetup_number = int(hardwaresetup.replace('HWR', ''))
@@ -165,7 +169,12 @@ def create_new_hardwaresetup(project_path, hardwaresetup_data):
     '''
 
     if is_ATE_project(project_path):
-        hardwaresetup_name = hardwaresetup_data['hardwaresetup_name']
+        hardwaresetup_name = hardwaresetup_data['hardwaresetup_name'].replace('HWR', '')
+
+
+
+        print("---> hwsetupname", hardwaresetup_name)
+
         hardwaresetup_root = dict_project_paths(project_path)['hwr_root']
         hardwaresetup_path =os.path.join(hardwaresetup_root, "%s.pickle" % hardwaresetup_name)
         pickle.dump(hardwaresetup_data, open(hardwaresetup_path, 'wb'), protocol=4) # fixing the protocol guarantees compatibility

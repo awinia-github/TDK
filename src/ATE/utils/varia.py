@@ -5,6 +5,16 @@ Created on Aug 9, 2019
 '''
 import sys, os
 
+def sys_platform():
+    if sys.platform == "linux" or sys.platform == "linux2":
+        return "Linux"
+    elif sys.platform == "Darwin":
+        return "OSX"
+    elif sys.platform == "win32": # and what with windows64?!?
+        return "Windows"
+    else:
+        return "Unknown OS : %s" % sys.platform
+
 def get_real_size(obj, seen=None):
     '''
     Recursively finds size of objects

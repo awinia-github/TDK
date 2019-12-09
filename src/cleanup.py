@@ -5,9 +5,9 @@ Created on Aug 16, 2019
 '''
 import os, shutil
 
-from myconsole import project_root
+from SpyderConsole import project_root
 
-files_to_keep = ['.project', '.pydevproject']
+files_to_keep = ['.gitignore']
 dirs_not_to_keep = ['__pycache__']
 
 def clean_files(verbose=False):

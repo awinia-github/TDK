@@ -10,7 +10,7 @@ project_structure = {
                                                                ('dunder_main.py', '__main__.py', 'text')]),
     './sources/definitions'           : ('definitions_root',  [('dunder_init.py', '__init__.py', 'text')]),
     './sources/definitions/states'    : ('states_root',       [('dunder_init.py', '__init__.py', 'text'),
-                                                               ('init_harware.py', 'init_hardware.py', 'text')]),
+                                                               ('init_hardware.py', 'init_hardware.py', 'text')]),
     './sources/definitions/protocols' : ('protocols_root',    [('dunder_init.py', '__init__.py', 'text')]),
     './sources/definitions/tests'     : ('tests_root',        [('dunder_init.py', '__init__.py', 'text')]),
     './sources/definitions/programs'  : ('programs_root',     [('dunder_init.py', '__init__.py', 'text')]),

@@ -9,219 +9,220 @@ import re
 from ATE.utils.varia import os_is_case_sensitive, path_is_writeable_by_me
 from ATE.utils.magicnumber import is_compressed_file, extension_from_magic_number_in_file
 from ATE.utils.compression import supported_compressions, supported_compressions_extensions, default_compression
-from ATE.Data.Formats.STDF.records import *
-
-from ATE.Data.Formats.STDF.records import MIR, SDR
+from ATE.data.STDF.records import *
 
 from ATE.utils.compression import get_deflated_file_size
     
-def stdfopen(FileName, mode='rb'):
-    '''
-    returns an open file object to the stdf file.
-    if the file is no STDF file, None is returned.
-    if the STDF file is compressed, returns the file object of the correct algorithm.
+# def stdfopen(FileName, mode='rb'):
+#     '''
+#     returns an open file object to the stdf file.
+#     if the file is no STDF file, None is returned.
+#     if the STDF file is compressed, returns the file object of the correct algorithm.
     
-    mode = 'rb' or 'wb' (no text supported ... raise ValueError if not rb or wb)
-    '''
-    if mode!='rb' and mode!='rb': raise ValueError("Only 'rb' and 'wb' are supported.")
-    if not is_STDF(FileName): return None
+#     mode = 'rb' or 'wb' (no text supported ... raise ValueError if not rb or wb)
+#     '''
+#     if mode!='rb' and mode!='rb': raise ValueError("Only 'rb' and 'wb' are supported.")
+#     if not is_STDF(FileName): return None
 
 
 
-def to_df(FileName, progress=True):
-    '''
-    This function will return a pandas data-frame from the given FileName.
+# def to_df(FileName, progress=True):
+#     '''
+#     This function will return a pandas data-frame from the given FileName.
     
-    This process has 3 stages :
-        1) index the FileName
-        2) Analyse
-        2) construct the dataframe
-    '''
+#     This process has 3 stages :
+#         1) index the FileName
+#         2) Analyse
+#         2) construct the dataframe
     
-    index = {}
-#   index = {'version' : stdf_version,
-#            'endian'  : stdf_endian,
-#            'records' : { REC_NAM : [offset, ... 
-#            'indexes' : { offset : bytearray of the record ...
-#            'parts' : {part# : [offset, offset, offset, ...
-    offset = 0
+#     ---> needs to move to metis !!! metis.import_stdf(...)
+    
+#     '''
+    
+#     index = {}
+# #   index = {'version' : stdf_version,
+# #            'endian'  : stdf_endian,
+# #            'records' : { REC_NAM : [offset, ... 
+# #            'indexes' : { offset : bytearray of the record ...
+# #            'parts' : {part# : [offset, offset, offset, ...
+#     offset = 0
 
-    if is_STDF(FileName):
-        endian, version = endian_and_version_from_file(FileName)
-        index['version'] = version
-        index['endian'] = endian  
-        index['records'] = {}
-        index['indexes'] = {}
-        index['parts'] = {}
-        PIP = {} # parts in process
-        PN = 1
+#     if is_STDF(FileName):
+#         endian, version = endian_and_version_from_file(FileName)
+#         index['version'] = version
+#         index['endian'] = endian  
+#         index['records'] = {}
+#         index['indexes'] = {}
+#         index['parts'] = {}
+#         PIP = {} # parts in process
+#         PN = 1
 
-        TS2ID = ts_to_id(version)
+#         TS2ID = ts_to_id(version)
 
-        if progress:
-            description = "Indexing STDF file '%s'" % os.path.split(FileName)[1]
-            index_progress = tqdm(total=get_deflated_file_size(FileName), ascii=True, disable=not progress, desc=description, leave=False, unit='b')
+#         if progress:
+#             description = "Indexing STDF file '%s'" % os.path.split(FileName)[1]
+#             index_progress = tqdm(total=get_deflated_file_size(FileName), ascii=True, disable=not progress, desc=description, leave=False, unit='b')
 
-        for _, REC_TYP, REC_SUB, REC in records_from_file(FileName):
-            REC_ID = TS2ID[(REC_TYP, REC_SUB)]
-            REC_LEN = len(REC)
-            if REC_ID not in index['records']: index['records'][REC_ID] = [] 
-            index['indexes'][offset] = REC
-            index['records'][REC_ID].append(offset)
-            if REC_ID in ['PIR', 'PRR', 'PTR', 'FTR', 'MPR']:
-                if REC_ID == 'PIR':
-                    pir = PIR(index['version'], index['endian'], REC)
-                    pir_HEAD_NUM = pir.get_value('HEAD_NUM')
-                    pir_SITE_NUM = pir.get_value('SITE_NUM')
-                    if (pir_HEAD_NUM, pir_SITE_NUM) in PIP:
-                        raise Exception("One should not be able to reach this point !")
-                    PIP[(pir_HEAD_NUM, pir_SITE_NUM)] = PN
-                    index['parts'][PN]=[]
-                    index['parts'][PN].append(offset)
-                    PN+=1  
-                elif REC_ID == 'PRR':
-                    prr = PRR(index['version'], index['endian'], REC)
-                    prr_HEAD_NUM = prr.get_value('HEAD_NUM') 
-                    prr_SITE_NUM = prr.get_value('SITE_NUM')
-                    if (prr_HEAD_NUM, prr_SITE_NUM) not in PIP:
-                        raise Exception("One should not be able to reach this point!")
-                    pn = PIP[(prr_HEAD_NUM, prr_SITE_NUM)]
-                    index['parts'][pn].append(offset)
-                    del PIP[(prr_HEAD_NUM, prr_SITE_NUM)]
-                elif REC_ID == 'PTR':
-                    ptr = PTR(index['version'], index['endian'], REC)
-                    ptr_HEAD_NUM = ptr.get_value('HEAD_NUM') 
-                    ptr_SITE_NUM = ptr.get_value('SITE_NUM')
-                    if (ptr_HEAD_NUM, ptr_SITE_NUM) not in PIP:
-                        raise Exception("One should not be able to reach this point!")
-                    pn = PIP[(ptr_HEAD_NUM, ptr_SITE_NUM)]
-                    index['parts'][pn].append(offset)
-                elif REC_ID == 'FTR':
-                    ftr = FTR(index['version'], index['endian'], REC)
-                    ftr_HEAD_NUM = ftr.get_value('HEAD_NUM') 
-                    ftr_SITE_NUM = ftr.get_value('SITE_NUM')
-                    if (ftr_HEAD_NUM, ftr_SITE_NUM) not in PIP:
-                        raise Exception("One should not be able to reach this point!")
-                    pn = PIP[(ftr_HEAD_NUM, ftr_SITE_NUM)]
-                    index['parts'][pn].append(offset)
-                elif REC_ID == 'MPR':
-                    mpr = MPR(index['version'], index['endian'], REC)
-                    mpr_HEAD_NUM = mpr.get_value('HEAD_NUM') 
-                    mpr_SITE_NUM = mpr.get_value('SITE_NUM')
-                    if (mpr_HEAD_NUM, mpr_SITE_NUM) not in PIP:
-                        raise Exception("One should not be able to reach this point!")
-                    pn = PIP[(mpr_HEAD_NUM, mpr_SITE_NUM)]
-                    index['parts'][pn].append(offset)
-                else:
-                    raise Exception("One should not be able to reach this point! (%s)" % REC_ID)
-            if progress: index_progress.update(REC_LEN)
-            offset += REC_LEN
+#         for _, REC_TYP, REC_SUB, REC in records_from_file(FileName):
+#             REC_ID = TS2ID[(REC_TYP, REC_SUB)]
+#             REC_LEN = len(REC)
+#             if REC_ID not in index['records']: index['records'][REC_ID] = [] 
+#             index['indexes'][offset] = REC
+#             index['records'][REC_ID].append(offset)
+#             if REC_ID in ['PIR', 'PRR', 'PTR', 'FTR', 'MPR']:
+#                 if REC_ID == 'PIR':
+#                     pir = PIR(index['version'], index['endian'], REC)
+#                     pir_HEAD_NUM = pir.get_value('HEAD_NUM')
+#                     pir_SITE_NUM = pir.get_value('SITE_NUM')
+#                     if (pir_HEAD_NUM, pir_SITE_NUM) in PIP:
+#                         raise Exception("One should not be able to reach this point !")
+#                     PIP[(pir_HEAD_NUM, pir_SITE_NUM)] = PN
+#                     index['parts'][PN]=[]
+#                     index['parts'][PN].append(offset)
+#                     PN+=1  
+#                 elif REC_ID == 'PRR':
+#                     prr = PRR(index['version'], index['endian'], REC)
+#                     prr_HEAD_NUM = prr.get_value('HEAD_NUM') 
+#                     prr_SITE_NUM = prr.get_value('SITE_NUM')
+#                     if (prr_HEAD_NUM, prr_SITE_NUM) not in PIP:
+#                         raise Exception("One should not be able to reach this point!")
+#                     pn = PIP[(prr_HEAD_NUM, prr_SITE_NUM)]
+#                     index['parts'][pn].append(offset)
+#                     del PIP[(prr_HEAD_NUM, prr_SITE_NUM)]
+#                 elif REC_ID == 'PTR':
+#                     ptr = PTR(index['version'], index['endian'], REC)
+#                     ptr_HEAD_NUM = ptr.get_value('HEAD_NUM') 
+#                     ptr_SITE_NUM = ptr.get_value('SITE_NUM')
+#                     if (ptr_HEAD_NUM, ptr_SITE_NUM) not in PIP:
+#                         raise Exception("One should not be able to reach this point!")
+#                     pn = PIP[(ptr_HEAD_NUM, ptr_SITE_NUM)]
+#                     index['parts'][pn].append(offset)
+#                 elif REC_ID == 'FTR':
+#                     ftr = FTR(index['version'], index['endian'], REC)
+#                     ftr_HEAD_NUM = ftr.get_value('HEAD_NUM') 
+#                     ftr_SITE_NUM = ftr.get_value('SITE_NUM')
+#                     if (ftr_HEAD_NUM, ftr_SITE_NUM) not in PIP:
+#                         raise Exception("One should not be able to reach this point!")
+#                     pn = PIP[(ftr_HEAD_NUM, ftr_SITE_NUM)]
+#                     index['parts'][pn].append(offset)
+#                 elif REC_ID == 'MPR':
+#                     mpr = MPR(index['version'], index['endian'], REC)
+#                     mpr_HEAD_NUM = mpr.get_value('HEAD_NUM') 
+#                     mpr_SITE_NUM = mpr.get_value('SITE_NUM')
+#                     if (mpr_HEAD_NUM, mpr_SITE_NUM) not in PIP:
+#                         raise Exception("One should not be able to reach this point!")
+#                     pn = PIP[(mpr_HEAD_NUM, mpr_SITE_NUM)]
+#                     index['parts'][pn].append(offset)
+#                 else:
+#                     raise Exception("One should not be able to reach this point! (%s)" % REC_ID)
+#             if progress: index_progress.update(REC_LEN)
+#             offset += REC_LEN
             
-        if progress:
-            description = "Analyzing data"
-            ttl = len(index['records']['TSR'])
-            analyze_progress = tqdm(total=ttl, ascii=True, position=1, disable=not progress, desc=description, leave=False, unit='tests')
+#         if progress:
+#             description = "Analyzing data"
+#             ttl = len(index['records']['TSR'])
+#             analyze_progress = tqdm(total=ttl, ascii=True, position=1, disable=not progress, desc=description, leave=False, unit='tests')
                 
-        TEST_NUM_NAM = {}
+#         TEST_NUM_NAM = {}
         
-        for tsr_offset in index['records']['TSR']:
-            tsr = TSR(index['version'], index['endian'], index['indexes'][tsr_offset])
-            TEST_NUM = tsr.get_value('TEST_NUM')
-            TEST_NAM = tsr.get_value('TEST_NAM')
-            TEST_TYP = tsr.get_value('TEST_TYP').upper()
-            if TEST_NUM not in TEST_NUM_NAM:
-                TEST_NUM_NAM[TEST_NUM] = []
-            if (TEST_NAM, TEST_TYP) not in TEST_NUM_NAM[TEST_NUM]:
-                TEST_NUM_NAM[TEST_NUM].append((TEST_NAM, TEST_TYP))
-            analyze_progress.update()
+#         for tsr_offset in index['records']['TSR']:
+#             tsr = TSR(index['version'], index['endian'], index['indexes'][tsr_offset])
+#             TEST_NUM = tsr.get_value('TEST_NUM')
+#             TEST_NAM = tsr.get_value('TEST_NAM')
+#             TEST_TYP = tsr.get_value('TEST_TYP').upper()
+#             if TEST_NUM not in TEST_NUM_NAM:
+#                 TEST_NUM_NAM[TEST_NUM] = []
+#             if (TEST_NAM, TEST_TYP) not in TEST_NUM_NAM[TEST_NUM]:
+#                 TEST_NUM_NAM[TEST_NUM].append((TEST_NAM, TEST_TYP))
+#             analyze_progress.update()
         
-        for TEST_NUM in TEST_NUM_NAM:
-            if len(TEST_NUM_NAM[TEST_NUM])==1:
-                TEST_NUM_NAM[TEST_NUM] = TEST_NUM_NAM[TEST_NUM][0]
+#         for TEST_NUM in TEST_NUM_NAM:
+#             if len(TEST_NUM_NAM[TEST_NUM])==1:
+#                 TEST_NUM_NAM[TEST_NUM] = TEST_NUM_NAM[TEST_NUM][0]
 
 
-        # Create the indexes of the dataframe
-        ROW_index = sorted(list(index['parts']))
-        TEST_ITM_index = ['LOT_ID', 'MOD_COD', 'X_POS', 'Y_POS'] #TODO: add more ...
-        TEST_NAM_index = ['Meta'] * len(TEST_ITM_index)
-        TEST_NUM_index = ['Meta'] * len(TEST_ITM_index)
-        for TEST_NUM in sorted(TEST_NUM_NAM):
-            TEST_TYP = TEST_NUM_NAM[TEST_NUM][1]
-            if TEST_TYP == 'P':
-                PTR_FIELDS = ['LO_SPEC', 'LO_LIMIT', 'RESULT', 'HI_LIMIT', 'HI_LIMIT', 'UNITS', 'PF']
-                TEST_ITM_index+=PTR_FIELDS
-                TEST_NAM_index+=[TEST_NUM_NAM[TEST_NUM][1]]*len(PTR_FIELDS)
-                TEST_NUM_index+=[TEST_NUM]*len(PTR_FIELDS)
-            elif TEST_TYP == 'F':
+#         # Create the indexes of the dataframe
+#         ROW_index = sorted(list(index['parts']))
+#         TEST_ITM_index = ['LOT_ID', 'MOD_COD', 'X_POS', 'Y_POS'] #TODO: add more ...
+#         TEST_NAM_index = ['Meta'] * len(TEST_ITM_index)
+#         TEST_NUM_index = ['Meta'] * len(TEST_ITM_index)
+#         for TEST_NUM in sorted(TEST_NUM_NAM):
+#             TEST_TYP = TEST_NUM_NAM[TEST_NUM][1]
+#             if TEST_TYP == 'P':
+#                 PTR_FIELDS = ['LO_SPEC', 'LO_LIMIT', 'RESULT', 'HI_LIMIT', 'HI_LIMIT', 'UNITS', 'PF']
+#                 TEST_ITM_index+=PTR_FIELDS
+#                 TEST_NAM_index+=[TEST_NUM_NAM[TEST_NUM][1]]*len(PTR_FIELDS)
+#                 TEST_NUM_index+=[TEST_NUM]*len(PTR_FIELDS)
+#             elif TEST_TYP == 'F':
                 
-                TEST_NUM_index+=[TEST_NUM]*5
-                TEST_NAM_index+=[TEST_NUM_NAM[TEST_NUM][1]]*5     # VECT_NAME TIME_SET NUM_FAIL X_FAIL_AD Y_FAIL_AD PF
-            elif TEST_TYP == 'M':
-                pass
-            else:
-                raise STDFError("Test Type '%s' is unknown" % TEST_TYP)
+#                 TEST_NUM_index+=[TEST_NUM]*5
+#                 TEST_NAM_index+=[TEST_NUM_NAM[TEST_NUM][1]]*5     # VECT_NAME TIME_SET NUM_FAIL X_FAIL_AD Y_FAIL_AD PF
+#             elif TEST_TYP == 'M':
+#                 pass
+#             else:
+#                 raise STDFError("Test Type '%s' is unknown" % TEST_TYP)
  
  
  
             
-        print("\n\n\n")
+#         print("\n\n\n")
             
             
-        for record_offset in index['parts'][1]:
-            record = index['indexes'][record_offset]
-            T, S = TS_from_record(record)
-            ID = TS2ID[(T,S)]
-            if ID == 'PTR':
-                ptr = PTR(index['version'], index['endian'], record)
-                print(ptr)
-            if ID == 'PIR':
-                pir = PIR(index['version'], index['endian'], record)
-                print(pir)
-            if ID == 'PRR':
-                prr = PRR(index['version'], index['endian'], record)
-                print(prr)
+#         for record_offset in index['parts'][1]:
+#             record = index['indexes'][record_offset]
+#             T, S = TS_from_record(record)
+#             ID = TS2ID[(T,S)]
+#             if ID == 'PTR':
+#                 ptr = PTR(index['version'], index['endian'], record)
+#                 print(ptr)
+#             if ID == 'PIR':
+#                 pir = PIR(index['version'], index['endian'], record)
+#                 print(pir)
+#             if ID == 'PRR':
+#                 prr = PRR(index['version'], index['endian'], record)
+#                 print(prr)
             
             
             
+            
+            
+# #         if progress:
+# #             description = "Constructing data-frame"
+# #             constructing_progress = tqdm(total=len(index['parts']), ascii=True, position=2, disable=not progress, desc=description, leave=False, unit='parts')
+# #         
+# #         for part in index['parts']:
+# #             for record_offset in index['parts'][part]:
+# #                 Type, SubType = TS_from_record(index['indexes'][record_offset])
+# #                 ID = TS2ID[(Type, SubType)]
+# #                 if ID == 'FTR':
+# #                     ftr = FTR(index['version'], index['endian'], index['indexes'][record_offset])
+# #                     
+# #                 
+# #                 if ID == 'PTR':
+# #                     ptr = PTR(index['version'], index['endian'], index['indexes'][record_offset])
+# #                 
+# #                 if ID == 'MPR':
+# #                     ptr = MPR(index['version'], index['endian'], index['indexes'][record_offset])
+# #                     
+# # 
+# # 
+# #             constructing_progress.update()
+        
+        
+        
+
+
             
             
 #         if progress:
-#             description = "Constructing data-frame"
-#             constructing_progress = tqdm(total=len(index['parts']), ascii=True, position=2, disable=not progress, desc=description, leave=False, unit='parts')
-#         
-#         for part in index['parts']:
-#             for record_offset in index['parts'][part]:
-#                 Type, SubType = TS_from_record(index['indexes'][record_offset])
-#                 ID = TS2ID[(Type, SubType)]
-#                 if ID == 'FTR':
-#                     ftr = FTR(index['version'], index['endian'], index['indexes'][record_offset])
-#                     
-#                 
-#                 if ID == 'PTR':
-#                     ptr = PTR(index['version'], index['endian'], index['indexes'][record_offset])
-#                 
-#                 if ID == 'MPR':
-#                     ptr = MPR(index['version'], index['endian'], index['indexes'][record_offset])
-#                     
-# 
-# 
-#             constructing_progress.update()
-        
-        
-        
-
-
-            
-            
-        if progress:
-            index_progress.close()
-            analyze_progress.close()
-#             constructing_progress.close()
+#             index_progress.close()
+#             analyze_progress.close()
+# #             constructing_progress.close()
     
-        return index, TEST_NUM_NAM
+#         return index, TEST_NUM_NAM
     
-    else: #not an STDF file
-        pass
+#     else: #not an STDF file
+#         pass
 
 # class File(object):
 #     
@@ -1863,6 +1864,7 @@ class records_from_file(object):
     '''
     This is a *QUICK* iterator class that returns the next record from an STDF file each time it is called.
     It is fast because it doesn't check versions, extensions and it doesn't unpack the record and skips unknown records.
+    It does support gzip, bz2 and lzma compression.
     '''
     def __init__(self, FileName):
         self.fd = None
@@ -1916,67 +1918,7 @@ class records_from_file(object):
                 return REC_LEN, REC_TYP, REC_SUB, header+footer
 
 
-# class objects_from_file(object):
-#     
-#     def __init__(self, FileName):
-#         self.fd = None
-#         if not isinstance(FileName, str): return
-#         if not os.path.exists(FileName): return
-#         if not os.path.isfile(FileName): return
-#         if not is_STDF(FileName): return
-#         if is_supported_compressed_STDF_file(FileName):
-#             ext = extension_from_magic_number_in_file(FileName)
-#             if len(ext)!=1: return
-#             compression = supported_compressions_extensions[ext[0]]
-#             if compression=='lzma':
-#                 import lzma
-#                 self.fd = lzma.open(FileName, 'rb')
-#             elif compression=='bz2':
-#                 import bz2
-#                 self.fd = bz2.open(FileName, 'rb')
-#             elif compression=='gzip':
-#                 import gzip
-#                 self.fd = gzip.open(FileName, 'rb')
-#             else:
-#                 raise Exception("the %s compression is supported but not fully implemented." % compression)
-#         else:
-#             self.fd = open(FileName, 'rb')
-#         buff = self.fd.read(6)
-#         CPU_TYPE, STDF_VER = struct.unpack('BB', buff[4:])
-#         if CPU_TYPE == 1: self.endian = '>'
-#         elif CPU_TYPE == 2: self.endian = '<'
-#         else: self.endian = '?'
-#         self.version = 'V%s' % STDF_VER
-#         self.fd.seek(0)
-#         self.unpack_fmt = '%sHBB' % self.endian
-#         
-#     def __del__(self):
-#         if self.fd != None:
-#             self.fd.close()
-#         
-#     def __iter__(self):
-#         return self
-#     
-#     def __next__(self):
-#         while self.fd!=None:
-#             while True:
-#                 header = self.fd.read(4)
-#                 if len(header)!=4:
-#                     raise StopIteration
-#                 REC_LEN, REC_TYP, REC_SUB = struct.unpack(self.unpack_fmt, header)
-#                 footer = self.fd.read(REC_LEN)
-#                 if len(footer)!=REC_LEN:
-#                     raise StopIteration
-#                 
-#                 #TODO generate the object here!
-#                 
-#                 
-#                 
-#                 return REC_LEN, REC_TYP, REC_SUB, header+footer
-    
-
 if __name__ == '__main__':
-    FileName = r'C:\\Users\\hoeren\\eclipse-workspace\\TDK\\resources\\stdf\\Cohu\\D10\\diamond32_1_2424_27x_P2N_H_303809001_00_17072019_161623.std.xz'
-
-    SDRs = SDRs_from_file(FileName)
-    print(SDRs)
+    FileName = r'C:/Users/hoeren/Desktop/TDK/resources/stdf/Advantest93K.std'
+    for REC in records_from_file(FileName):
+        print(REC)

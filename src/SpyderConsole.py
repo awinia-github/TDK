@@ -6,21 +6,14 @@ Created on Aug 14, 2019
 import os
 
 project_root = str.join(os.path.sep, os.path.split(__file__)[0].split(os.path.sep)[:-1]) 
-# print(project_root)
-
-TDK_src_root = os.path.dirname(__file__)
-# print(TDK_src_root)
 
 project = os.path.join(project_root, 'src')
 resources = os.path.join(project_root, 'resources')
 stdf_resources = os.path.join(resources, 'stdf')
-metis_path = os.path.join(resources, 'metis')
+metis_resources = os.path.join(resources, 'metis')
+
 our_license = os.path.join(project_root, 'license')
 doc = os.path.join(project_root, 'doc')
-
-ATE_scripts = os.path.join(project, str.join(os.path.sep, ['ATE', 'scripts']))
-SCT_scripts = os.path.join(project, str.join(os.path.sep, ['SCT', 'scripts']))
-metis_scripts = os.path.join(project, str.join(os.path.sep, ['metis', 'scripts']))
 
 
 # good place to see the size of the whole tree
@@ -51,4 +44,7 @@ if __name__ == '__main__':
     exec("project = r'%s'" % project)
     print("sys.path.insert(0, project)")
     exec("sys.path.insert(0, project)")
-    print("os.environ['METIS'] = r'%s'" % metis_path)
+    print("os.environ['METIS'] = r'%s'" % metis_resources)
+    exec("os.environ['METIS'] = r'%s'" % metis_resources)
+    print("stdf_resources = r'%s'" % stdf_resources)
+    exec("stdf_resources = r'%s'" % stdf_resources)

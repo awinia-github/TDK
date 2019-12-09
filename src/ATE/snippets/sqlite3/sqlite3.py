@@ -9,30 +9,19 @@ import os
 import sqlite3
 
 
-class db(object):
-    
-    def __init__(self):
-        self.db_path = os.path.join(os.path.basename(__file__), 'database.sqlite3')
-        self.db_conn = sqlite3.connect(self.db_path)
-        self.db_cursor = self.db_conn.cursor()
 
-    def __del__(self):
-        self.db_conn.close()
-        
-    def add_hardwaresetup(self, data):
-        pass
-    
     
 
+db_file = r'C:\Users\hoeren\__spyder_workspace__\CTCA\CTCA.sqlite3'
+sql_select_statement = "SELECT Name FROM hardwaresetups ORDER BY Name ASC"
 
+conn = sqlite3.connect(db_file)
+cur = conn.cursor()
+cur.execute(sql_select_statement)
+rows = cur.fetchall()
 
-sql = "SELECT name, ProbeCard FROM hardwaresetups"
-
-db_cursor.execute(sql)
-
-rows = db_cursor.fetchall()
-headers = [description[0] for description in db_cursor.description]
-
+result = []
 for row in rows:
-    for index, header in enumerate(headers):
-        print(index, header, row)
+    result.append(row[0])
+
+print(result)

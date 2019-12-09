@@ -21,7 +21,6 @@ class listings(object):
         if not os.path.exists(self.db_path):
             raise Exception("Couldn't find '%s'" % self.db_path)
         self.conn = sqlite3.connect(self.db_path)
-        self.cursor = self.conn.cursor()
 
     def __del__(self):
         if self.conn != None:
@@ -31,7 +30,6 @@ class listings(object):
         if 'INSERT' not in insert_sql_statement.upper():
             raise Exception("I don't find the 'INSERT' keyword in '%s'" % insert_sql_statement)
         self.cursor.execute(insert_sql_statement)
-        self.conn.commit()
     
     def select(self, select_sql_statement):
         if 'SELECT' not in select_sql_statement.upper():
@@ -40,8 +38,12 @@ class listings(object):
     def list_hardwaresetups(self):
         retval = []
         sql_statement = "SELECT Name FROM hardwaresetups ORDER BY Name ASC"
-        for row in self.cursor.execute(sql_statement):
-            retval.append("HWR%s" % row[0])
+        if self.conn!=None:
+            cursor = self.conn.cursor()
+            cursor.execute(sql_statement)
+            rows = cursor.fetchall()
+            for row in rows:
+                retval.append("HWR%s" % row[0])
         return retval
         
     def dict_hardwaresetups(self):
@@ -50,7 +52,6 @@ class listings(object):
     def get_hardwaresetup(self, hardwaresetup):
         pass
     
-
 
 def dict_projects(workspace_path):
     '''
