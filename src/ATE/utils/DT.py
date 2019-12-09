@@ -452,11 +452,8 @@ class ChronoMeter(object):
         return self.scoreboard[lap][1]
 
     def averagelaptime(self):
-        TotalLapTime = 0
-        for lap in range(self.la)
+        pass #TODO: Implement
         
-        return retval
-
     def __repr__(self):
         print(self.__str__())
     
@@ -475,5 +472,5 @@ if __name__ == "__main__":
     print("end of week = %s" % DT(now.eow()))
     print("begin of day = %s" % DT(now.bod()))
     print("end of day = %s" % DT(now.eod()))
-    print(DT(time.strptime("Monday, September 22 2014 @ 10:26:26", "%A, %B %d %Y @ %H:%M:%S")))
+
     

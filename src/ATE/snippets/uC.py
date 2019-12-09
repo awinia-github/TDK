@@ -1,6 +1,8 @@
 '''
 Created on Oct 2, 2019
 
+--> time structure of Micronas ...
+
 @author: hoeren
 '''
 import struct

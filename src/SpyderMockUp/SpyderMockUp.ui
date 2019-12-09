@@ -1,0 +1,499 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>802</width>
+    <height>696</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QTreeWidget" name="tree">
+        <column>
+         <property name="text">
+          <string notr="true">1</string>
+         </property>
+        </column>
+       </widget>
+      </item>
+      <item>
+       <widget class="QTabWidget" name="tabWidget">
+        <property name="minimumSize">
+         <size>
+          <width>520</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="tabPosition">
+         <enum>QTabWidget::South</enum>
+        </property>
+        <widget class="QWidget" name="tab">
+         <attribute name="title">
+          <string>Tab 1</string>
+         </attribute>
+        </widget>
+        <widget class="QWidget" name="tab_2">
+         <attribute name="title">
+          <string>Tab 2</string>
+         </attribute>
+        </widget>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>802</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <widget class="QMenu" name="file_new">
+     <property name="title">
+      <string>new</string>
+     </property>
+     <addaction name="action_new_project"/>
+    </widget>
+    <addaction name="file_new"/>
+    <addaction name="separator"/>
+   </widget>
+   <addaction name="menuFile"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="action_new_test">
+   <property name="text">
+    <string>test</string>
+   </property>
+  </action>
+  <action name="action_new_maskset">
+   <property name="text">
+    <string>maskset</string>
+   </property>
+  </action>
+  <action name="action_new_device">
+   <property name="text">
+    <string>device</string>
+   </property>
+  </action>
+  <action name="action_new_die">
+   <property name="text">
+    <string>die</string>
+   </property>
+  </action>
+  <action name="action_new_product">
+   <property name="text">
+    <string>product</string>
+   </property>
+  </action>
+  <action name="action_new_project">
+   <property name="text">
+    <string>project</string>
+   </property>
+  </action>
+  <action name="action_edit_test">
+   <property name="text">
+    <string>test</string>
+   </property>
+  </action>
+  <action name="action_edit_maskset">
+   <property name="text">
+    <string>maskset</string>
+   </property>
+  </action>
+  <action name="action_edit_device">
+   <property name="text">
+    <string>device</string>
+   </property>
+  </action>
+  <action name="action_edit_die">
+   <property name="text">
+    <string>die</string>
+   </property>
+  </action>
+  <action name="action_edit_product">
+   <property name="text">
+    <string>product</string>
+   </property>
+  </action>
+  <action name="action_edit_flow">
+   <property name="text">
+    <string>flow</string>
+   </property>
+  </action>
+  <action name="action_display_tests">
+   <property name="text">
+    <string>tests</string>
+   </property>
+  </action>
+  <action name="action_display_masksets">
+   <property name="text">
+    <string>masksets</string>
+   </property>
+  </action>
+  <action name="action_display_devices">
+   <property name="text">
+    <string>devices</string>
+   </property>
+  </action>
+  <action name="action_display_dies">
+   <property name="text">
+    <string>dies</string>
+   </property>
+  </action>
+  <action name="action_display_products">
+   <property name="text">
+    <string>products</string>
+   </property>
+  </action>
+  <action name="action_display_flows">
+   <property name="text">
+    <string>flows</string>
+   </property>
+  </action>
+  <action name="action_delete_test">
+   <property name="text">
+    <string>test</string>
+   </property>
+  </action>
+  <action name="action_delete_maskset">
+   <property name="text">
+    <string>maskset</string>
+   </property>
+  </action>
+  <action name="action_delete_device">
+   <property name="text">
+    <string>device</string>
+   </property>
+  </action>
+  <action name="action_delete_die">
+   <property name="text">
+    <string>die</string>
+   </property>
+  </action>
+  <action name="action_delete_product">
+   <property name="text">
+    <string>product</string>
+   </property>
+  </action>
+  <action name="action_delete_flow">
+   <property name="text">
+    <string>flow</string>
+   </property>
+  </action>
+  <action name="action_delete_project">
+   <property name="text">
+    <string>project</string>
+   </property>
+  </action>
+  <action name="actionopen">
+   <property name="text">
+    <string>open</string>
+   </property>
+  </action>
+  <action name="action_edit_project">
+   <property name="text">
+    <string>project</string>
+   </property>
+  </action>
+  <action name="action_display_workspace">
+   <property name="text">
+    <string>workspace</string>
+   </property>
+  </action>
+  <action name="action_display_allprojects">
+   <property name="text">
+    <string>ALL projects</string>
+   </property>
+  </action>
+  <action name="action_display_activeproject">
+   <property name="text">
+    <string>active project</string>
+   </property>
+  </action>
+  <action name="action_new_package">
+   <property name="text">
+    <string>package</string>
+   </property>
+  </action>
+  <action name="action_rename_test">
+   <property name="text">
+    <string>test</string>
+   </property>
+  </action>
+  <action name="action_rename_maskset">
+   <property name="text">
+    <string>maskset</string>
+   </property>
+  </action>
+  <action name="action_rename_device">
+   <property name="text">
+    <string>device</string>
+   </property>
+  </action>
+  <action name="action_rename_die">
+   <property name="text">
+    <string>die</string>
+   </property>
+  </action>
+  <action name="action_rename_product">
+   <property name="text">
+    <string>product</string>
+   </property>
+  </action>
+  <action name="action_rename_package">
+   <property name="text">
+    <string>package</string>
+   </property>
+  </action>
+  <action name="action_new_hardwaresetup">
+   <property name="text">
+    <string>hardware setup</string>
+   </property>
+  </action>
+  <action name="action_display_ateprojects">
+   <property name="text">
+    <string>ATE projects</string>
+   </property>
+  </action>
+  <action name="action_new_protocol">
+   <property name="text">
+    <string>protocol</string>
+   </property>
+  </action>
+  <action name="action_new_registermap">
+   <property name="text">
+    <string>register map</string>
+   </property>
+  </action>
+  <action name="action_import_maskset">
+   <property name="text">
+    <string>maskset</string>
+   </property>
+  </action>
+  <action name="action_import_registermap">
+   <property name="text">
+    <string>register map</string>
+   </property>
+  </action>
+  <action name="action_new_testprogram">
+   <property name="text">
+    <string>test program</string>
+   </property>
+  </action>
+  <action name="action_display_testprograms">
+   <property name="text">
+    <string>test programs</string>
+   </property>
+  </action>
+  <action name="action_display_protocols">
+   <property name="text">
+    <string>protocols</string>
+   </property>
+  </action>
+  <action name="action_display_registermaps">
+   <property name="text">
+    <string>register maps</string>
+   </property>
+  </action>
+  <action name="action_display_packages">
+   <property name="text">
+    <string>packages</string>
+   </property>
+  </action>
+  <action name="action_display_hardwaresetups">
+   <property name="text">
+    <string>hardware setups</string>
+   </property>
+  </action>
+  <action name="action_new_flow">
+   <property name="text">
+    <string>flow</string>
+   </property>
+  </action>
+  <action name="action_delete_testprogram">
+   <property name="text">
+    <string>test program</string>
+   </property>
+  </action>
+  <action name="action_delete_flow_2">
+   <property name="text">
+    <string>flow</string>
+   </property>
+  </action>
+  <action name="action_delete_protocol">
+   <property name="text">
+    <string>protocol</string>
+   </property>
+  </action>
+  <action name="action_delete_registermap">
+   <property name="text">
+    <string>register map</string>
+   </property>
+  </action>
+  <action name="action_delete_package">
+   <property name="text">
+    <string>package</string>
+   </property>
+  </action>
+  <action name="action_delete_hardwaresetup">
+   <property name="text">
+    <string>hardware setup</string>
+   </property>
+  </action>
+  <action name="action_clone_test">
+   <property name="text">
+    <string>test</string>
+   </property>
+  </action>
+  <action name="action_clone_testprogram">
+   <property name="text">
+    <string>test program</string>
+   </property>
+  </action>
+  <action name="action_clone_protocol">
+   <property name="text">
+    <string>protocol</string>
+   </property>
+  </action>
+  <action name="action_clone_registermap">
+   <property name="text">
+    <string>register map</string>
+   </property>
+  </action>
+  <action name="action_clone_product">
+   <property name="text">
+    <string>product</string>
+   </property>
+  </action>
+  <action name="action_clone_device">
+   <property name="text">
+    <string>device</string>
+   </property>
+  </action>
+  <action name="action_clone_package">
+   <property name="text">
+    <string>package</string>
+   </property>
+  </action>
+  <action name="action_clone_die">
+   <property name="text">
+    <string>die</string>
+   </property>
+  </action>
+  <action name="action_clone_maskset">
+   <property name="text">
+    <string>maskset</string>
+   </property>
+  </action>
+  <action name="actionhardware">
+   <property name="text">
+    <string>hardware</string>
+   </property>
+  </action>
+  <action name="actionproject">
+   <property name="text">
+    <string>project</string>
+   </property>
+  </action>
+  <action name="action_clone_flow">
+   <property name="text">
+    <string>flow</string>
+   </property>
+  </action>
+  <action name="action_import_product">
+   <property name="text">
+    <string>product</string>
+   </property>
+  </action>
+  <action name="action_import_package">
+   <property name="text">
+    <string>package</string>
+   </property>
+  </action>
+  <action name="action_edit_test_2">
+   <property name="text">
+    <string>test</string>
+   </property>
+  </action>
+  <action name="action_edit_testprogram">
+   <property name="text">
+    <string>test program</string>
+   </property>
+  </action>
+  <action name="action_edit_flow_2">
+   <property name="text">
+    <string>flow</string>
+   </property>
+  </action>
+  <action name="action_edit_protocol">
+   <property name="text">
+    <string>protocol</string>
+   </property>
+  </action>
+  <action name="action_edit_registermap">
+   <property name="text">
+    <string>registermap</string>
+   </property>
+  </action>
+  <action name="action_edit_product_2">
+   <property name="text">
+    <string>product</string>
+   </property>
+  </action>
+  <action name="action_edit_device_2">
+   <property name="text">
+    <string>device</string>
+   </property>
+  </action>
+  <action name="action_edit_package">
+   <property name="text">
+    <string>package</string>
+   </property>
+  </action>
+  <action name="action_edit_die_2">
+   <property name="text">
+    <string>die</string>
+   </property>
+  </action>
+  <action name="action_edit_maskset_2">
+   <property name="text">
+    <string>maskset</string>
+   </property>
+  </action>
+  <action name="actionhardware_setup_2">
+   <property name="text">
+    <string>hardware setup</string>
+   </property>
+  </action>
+  <action name="action_delete_flow_3">
+   <property name="text">
+    <string>flow</string>
+   </property>
+  </action>
+  <action name="action_edit_hardwaresetup">
+   <property name="text">
+    <string>hardware setup</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
